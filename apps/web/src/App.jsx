@@ -35,7 +35,7 @@ import OnboardingUtente from '@/pages/Onboarding/OnboardingUtente';
 /* ═══════════════════════════════════════════════════════════════════════════
    ADMIN
    ═══════════════════════════════════════════════════════════════════════════ */
-import AdminLayout from '@/components/Layout/AdminLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import ClientiPage from '@/pages/admin/ClientiPage';
 import SchedaClientePage from '@/pages/admin/SchedaClientePage';
@@ -62,7 +62,7 @@ import AnalyticsPage from '@/pages/admin/AnalyticsPage';
 /* ═══════════════════════════════════════════════════════════════════════════
    locatore
    ═══════════════════════════════════════════════════════════════════════════ */
-import LocatoreLayout from '@/components/Layout/LocatoreLayout';
+import LocatoreLayout from '@/components/layout/LocatoreLayout';
 import LandlordDashboard from '@/pages/locatore/LandlordDashboard';
 import ImmobiliPage from '@/pages/locatore/ImmobiliPage';
 import SchedaImmobileLocatorePage from '@/pages/locatore/SchedaImmobileLocatorePage';
@@ -76,7 +76,7 @@ import ProfiloLocatorePage from '@/pages/locatore/ProfiloLocatorePage';
 /* ═══════════════════════════════════════════════════════════════════════════
    INQUILINO
    ═══════════════════════════════════════════════════════════════════════════ */
-import InquilinoLayout from '@/components/Layout/InquilinoLayout';
+import InquilinoLayout from '@/components/layout/InquilinoLayout';
 import TenantDashboard from '@/pages/Inquilino/TenantDashboard';
 import ContrattoInquilinoPage from '@/pages/Inquilino/ContrattoInquilinoPage';
 import PagamentiInquilinoPage from '@/pages/Inquilino/PagamentiInquilinoPage';
@@ -88,7 +88,7 @@ import ProfiloInquilinoPage from '@/pages/Inquilino/ProfiloInquilinoPage';
 /* ═══════════════════════════════════════════════════════════════════════════
    AVVOCATO
    ═══════════════════════════════════════════════════════════════════════════ */
-import AvvocatoLayout from '@/components/Layout/AvvocatoLayout';
+import AvvocatoLayout from '@/components/layout/AvvocatoLayout';
 import AvvocatoDashboard from '@/pages/Avvocato/AvvocatoDashboard';
 import CodaLavoroPage from '@/pages/Avvocato/CodaLavoroPage';
 import ClientiAssegnatiPage from '@/pages/Avvocato/ClientiAssegnatiPage';
@@ -100,7 +100,7 @@ import ProfiloAvvocatoPage from '@/pages/Avvocato/ProfiloAvvocatoPage';
 /* ═══════════════════════════════════════════════════════════════════════════
    COMMERCIALE
    ═══════════════════════════════════════════════════════════════════════════ */
-import CommercialeLayout from '@/components/Layout/CommercialeLayout';
+import CommercialeLayout from '@/components/layout/CommercialeLayout';
 import CommercialeDashboard from '@/pages/Commerciale/CommercialeDashboard';
 import MieiClientiPage from '@/pages/Commerciale/MieiClientiPage';
 import SchedaClienteCommercialePage from '@/pages/Commerciale/SchedaClienteCommercialePage';
