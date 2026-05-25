@@ -36,42 +36,42 @@ import OnboardingUtente from '@/pages/Onboarding/OnboardingUtente';
    ADMIN
    ═══════════════════════════════════════════════════════════════════════════ */
 import AdminLayout from '@/components/layout/AdminLayout';
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import ClientiPage from '@/pages/admin/ClientiPage';
-import SchedaClientePage from '@/pages/admin/SchedaClientePage';
-import ContrattiPage from '@/pages/admin/ContrattiPage';
-import SchedaImmobilePage from '@/pages/admin/SchedaImmobilePage';
-import SegnalazioniPage from '@/pages/admin/SegnalazioniPage';
-import PagamentiPage from '@/pages/admin/PagamentiPage';
-import BonificiPage from '@/pages/admin/BonificiPage';
-import CollaboratoriPage from '@/pages/admin/CollaboratoriPage';
-import SchedaCollaboratorePage from '@/pages/admin/SchedaCollaboratorePage';
-import ProdottiAdminPage from '@/pages/admin/ProdottiPage';
-import VenditePage from '@/pages/admin/VenditePage';
-import ProvvigioniAdminPage from '@/pages/admin/ProvvigioniPage';
-import AssistenzaAdminPage from '@/pages/admin/AssistenzaPage';
-import OnboardingAdminPage from '@/pages/admin/OnboardingPage';
-import FaqAdminPage from '@/pages/admin/FaqAdminPage';
-import ContestazionePageAdmin from '@/pages/admin/ContestazionePage';
-import ProfiloAdminPage from '@/pages/admin/ProfiloAdminPage';
-import ImpostazioniPage from '@/pages/admin/ImpostazioniPage';
-import EmailPage from '@/pages/admin/EmailPage';
-import ContabilitaPage from '@/pages/admin/ContabilitaPage';
-import AnalyticsPage from '@/pages/admin/AnalyticsPage';
+import AdminDashboard from '@/pages/Admin/AdminDashboard';
+import ClientiPage from '@/pages/Admin/ClientiPage';
+import SchedaClientePage from '@/pages/Admin/SchedaClientePage';
+import ContrattiPage from '@/pages/Admin/ContrattiPage';
+import SchedaImmobilePage from '@/pages/Admin/SchedaImmobilePage';
+import SegnalazioniPage from '@/pages/Admin/SegnalazioniPage';
+import PagamentiPage from '@/pages/Admin/PagamentiPage';
+import BonificiPage from '@/pages/Admin/BonificiPage';
+import CollaboratoriPage from '@/pages/Admin/CollaboratoriPage';
+import SchedaCollaboratorePage from '@/pages/Admin/SchedaCollaboratorePage';
+import ProdottiAdminPage from '@/pages/Admin/ProdottiPage';
+import VenditePage from '@/pages/Admin/VenditePage';
+import ProvvigioniAdminPage from '@/pages/Admin/ProvvigioniPage';
+import AssistenzaAdminPage from '@/pages/Admin/AssistenzaPage';
+import OnboardingAdminPage from '@/pages/Admin/OnboardingPage';
+import FaqAdminPage from '@/pages/Admin/FaqAdminPage';
+import ContestazionePageAdmin from '@/pages/Admin/ContestazionePage';
+import ProfiloAdminPage from '@/pages/Admin/ProfiloAdminPage';
+import ImpostazioniPage from '@/pages/Admin/ImpostazioniPage';
+import EmailPage from '@/pages/Admin/EmailPage';
+import ContabilitaPage from '@/pages/Admin/ContabilitaPage';
+import AnalyticsPage from '@/pages/Admin/AnalyticsPage';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    locatore
    ═══════════════════════════════════════════════════════════════════════════ */
 import LocatoreLayout from '@/components/layout/LocatoreLayout';
-import LandlordDashboard from '@/pages/locatore/LandlordDashboard';
-import ImmobiliPage from '@/pages/locatore/ImmobiliPage';
-import SchedaImmobileLocatorePage from '@/pages/locatore/SchedaImmobileLocatorePage';
-import SegnalazioniLocatorePage from '@/pages/locatore/SegnalazioniLocatorePage';
-import ContestazionePagelocatore from '@/pages/locatore/ContestazionePage';
-import PagamentiLocatorePage from '@/pages/locatore/PagamentiLocatorePage';
-import DocumentiLocatorePage from '@/pages/locatore/DocumentiLocatorePage';
-import AssistenzaLocatorePage from '@/pages/locatore/AssistenzaLocatorePage';
-import ProfiloLocatorePage from '@/pages/locatore/ProfiloLocatorePage';
+import LandlordDashboard from '@/pages/Locatore/LandlordDashboard';
+import ImmobiliPage from '@/pages/Locatore/ImmobiliPage';
+import SchedaImmobileLocatorePage from '@/pages/Locatore/SchedaImmobileLocatorePage';
+import SegnalazioniLocatorePage from '@/pages/Locatore/SegnalazioniLocatorePage';
+import ContestazionePagelocatore from '@/pages/Locatore/ContestazionePage';
+import PagamentiLocatorePage from '@/pages/Locatore/PagamentiLocatorePage';
+import DocumentiLocatorePage from '@/pages/Locatore/DocumentiLocatorePage';
+import AssistenzaLocatorePage from '@/pages/Locatore/AssistenzaLocatorePage';
+import ProfiloLocatorePage from '@/pages/Locatore/ProfiloLocatorePage';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    INQUILINO
