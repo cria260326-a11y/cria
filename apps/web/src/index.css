@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 206 52% 10%;
+    
+    /* Navy Blue #1a3a52 */
+    --primary: 206 52% 21%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Green #2d7a4a */
+    --secondary: 143 46% 33%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --status-green: 143 46% 33%;
+    --status-yellow: 45 100% 51%;
+    --status-red: 4 90% 58%;
+    
+    --muted: 206 20% 96%;
+    --muted-foreground: 206 15% 45%;
+    
+    --accent: 206 20% 94%;
+    --accent-foreground: 206 52% 21%;
+    
+    --destructive: 4 90% 58%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 206 20% 90%;
+    --input: 206 20% 90%;
+    --ring: 206 52% 21%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 206 52% 10%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 206 52% 10%;
+    
+    --radius: 0.75rem;
+  }
+  
+  .dark {
+    --background: 206 52% 5%;
+    --foreground: 206 20% 98%;
+    
+    --primary: 206 52% 40%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 143 46% 45%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 206 30% 12%;
+    --muted-foreground: 206 20% 65%;
+    
+    --accent: 206 30% 15%;
+    --accent-foreground: 206 20% 98%;
+    
+    --border: 206 30% 15%;
+    --input: 206 30% 15%;
+    --ring: 206 52% 40%;
+    
+    --card: 206 30% 8%;
+    --card-foreground: 206 20% 98%;
+    
+    --popover: 206 30% 8%;
+    --popover-foreground: 206 20% 98%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+  
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer utilities {
+  .font-variant-numeric-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
