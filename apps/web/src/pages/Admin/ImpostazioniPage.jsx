@@ -8,26 +8,24 @@ import {
     Settings, Percent, Euro, Save, Info, Building2, Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PARAMETRI } from '@/data/catalogo';
+import { ALIQUOTE_PROVVIGIONE } from '@/data/direzione';
 
 // ─── Dati mock ─────────────────────────────────────────────────────────────────
 const IMPOSTAZIONI_INIZIALI = {
-    // Provvigioni
-    provvigioneCommerciale_p1: 17,
-    provvigioneCommerciale_p2: 16,
-    provvigioneCommerciale_p3: 20,
+    // Provvigioni: le stesse aliquote che usa Vendite (O-25)
+    provvigioneCommerciale_p1: ALIQUOTE_PROVVIGIONE.P1,
+    provvigioneCommerciale_p2: ALIQUOTE_PROVVIGIONE.P2,
+    provvigioneCommerciale_p3: ALIQUOTE_PROVVIGIONE.P3,
     compensoAvvocato_p1: 80,
     compensoAvvocato_p2: 150,
-
-    // Soglie temporali
-    giornoSegnalazioneAuto: 11,
-    giorniContestazione: 7,
 
     // Contatti azienda
     ragioneSociale: 'CRIA S.r.l.',
     partitaIva: 'IT12345678901',
     indirizzoSede: 'Via Roma 1, 20100 Milano (MI)',
     telefonoAssistenza: '+39 02 1234 5678',
-    emailLegale: 'legal@cria.it',
+    emailLegale: 'legal@cri-affitti.it',
 
     // Sistema
     manutenzioneAttiva: false,
@@ -150,13 +148,20 @@ const ImpostazioniPage = () => {
                 </Sezione>
 
                 {/* ── SOGLIE AUTOMATICHE ───────────────────────────────── */}
+                {/* Regole del prodotto, uguali per tutti i contratti: qui si leggono soltanto. */}
                 <Sezione titolo="Soglie automatiche" icona={Clock}
                     descrizione="Tempistiche per l'automazione del flusso operativo">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <CampoNum label="Giorno segnalazione automatica" value={imp.giornoSegnalazioneAuto} onChange={v => set('giornoSegnalazioneAuto', v)} suffisso="del mese" min={1} max={28}
-                            descrizione="Se il locatore non segnala entro questo giorno, il pagamento viene considerato regolare" />
-                        <CampoNum label="Finestra contestazione" value={imp.giorniContestazione} onChange={v => set('giorniContestazione', v)} suffisso="giorni" min={1} max={30}
-                            descrizione="Giorni a disposizione dell'inquilino per contestare una segnalazione" />
+                        <div className="space-y-1.5">
+                            <p className="text-sm font-medium text-foreground">Giorno mese non rilevato</p>
+                            <p className="text-lg font-semibold text-foreground">Il giorno {PARAMETRI.giornoChiusuraMese} del mese</p>
+                            <p className="text-xs text-muted-foreground">Se il proprietario non segnala entro questo giorno, il mese diventa non rilevato: non conta nel semaforo e la copertura del mese decade</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <p className="text-sm font-medium text-foreground">Finestra contestazione</p>
+                            <p className="text-lg font-semibold text-foreground">{PARAMETRI.giorniContestazione} giorni</p>
+                            <p className="text-xs text-muted-foreground">Giorni a disposizione dell'inquilino per contestare una segnalazione di non pagato</p>
+                        </div>
                     </div>
                 </Sezione>
 

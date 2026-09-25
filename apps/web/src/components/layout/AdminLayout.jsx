@@ -1,183 +1,117 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext.jsx';
-import { Button } from '@/components/ui/button';
 import {
-    LayoutDashboard, Users, FileText, Home, Bell,
-    CreditCard, UserCog, Package, ShoppingCart, HelpCircle,
-    Percent, MessageSquare, ClipboardList, LogOut, ChevronRight,
-    Scale, Banknote, Calculator, Shield,
-    Mail, BarChart3, History, Settings, User
+    LayoutDashboard, CalendarClock, Users, GitMerge, Home, ClipboardList, Bell, Scale, CreditCard,
+    ArrowLeftRight, ShieldAlert, HandCoins, Umbrella, Banknote, Percent, Calculator, Mail, Smartphone,
+    MessageSquare, HelpCircle, Package, ShoppingCart, UserCog, Settings, Type, Gauge, ListChecks,
 } from 'lucide-react';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { FUNZIONI } from '@/data/operatori';
+import { useOperatoreAttivo } from '@/lib/operatoreAttivo';
 
-const LOGO_URL = '/logo.png';
-
-/* ───────── Struttura sidebar ─────────────────────────────────────────────
- * Raggruppata per area funzionale per evitare wall-of-icons.
- * Niente badge: contatori verranno aggiunti quando il backend li fornisce.
- * ─────────────────────────────────────────────────────────────────────── */
+// Per funzione operativa (lotto 5): ogni gruppo è il lavoro di una funzione.
+// Chi vede quali voci lo decidono ruolo e assegnazione, nel lotto 6; per ora
+// ognuno vede tutte le voci e le pagine mostrano quello che spetta alla sua
+// funzione. La funzione è quella dell'account con cui si è entrati.
 const NAV_GROUPS = [
     {
-        label: 'Operatività',
+        label: 'Oggi',
         items: [
-            { label: 'Panoramica', path: '/dashboard/admin', icon: LayoutDashboard },
-            { label: 'Utenti', path: '/dashboard/admin/clienti', icon: Users },
-            { label: 'Contratti e immobili', path: '/dashboard/admin/contratti', icon: Home },
-            { label: 'Segnalazioni', path: '/dashboard/admin/segnalazioni', icon: Bell },
-            { label: 'Contestazioni', path: '/dashboard/admin/contestazioni', icon: Scale },
-            { label: 'Onboarding', path: '/dashboard/admin/onboarding', icon: ClipboardList },
-            { label: 'Assistenza', path: '/dashboard/admin/assistenza', icon: MessageSquare },
+            // La panoramica dell'azienda, per ora, la apre l'admin.
+            { label: 'Panoramica', path: '/dashboard/admin', icon: LayoutDashboard, soloAdmin: true },
+            { label: 'Il lavoro di oggi', path: '/dashboard/admin/lavoro', icon: ListChecks },
+            { label: 'Scadenze', path: '/dashboard/admin/scadenze', icon: CalendarClock },
         ],
     },
     {
-        label: 'Business',
+        label: 'Anagrafica',
         items: [
-            { label: 'Vendite', path: '/dashboard/admin/vendite', icon: ShoppingCart },
-            { label: 'Bonifici', path: '/dashboard/admin/bonifici', icon: Banknote },
+            { label: 'Utenti', path: '/dashboard/admin/clienti', icon: Users },
+            { label: 'Revisione anagrafiche', path: '/dashboard/admin/anagrafiche', icon: GitMerge },
+            { label: 'Contratti e immobili', path: '/dashboard/admin/contratti', icon: Home, anche: ['/dashboard/admin/immobili'] },
+        ],
+    },
+    {
+        label: 'Istruttoria',
+        items: [
+            { label: 'Pratiche da deliberare', path: '/dashboard/admin/onboarding', icon: ClipboardList },
+        ],
+    },
+    {
+        label: 'Ciclo mensile',
+        items: [
+            { label: 'Segnalazioni', path: '/dashboard/admin/segnalazioni', icon: Bell },
+            { label: 'Contestazioni', path: '/dashboard/admin/contestazioni', icon: Scale },
             { label: 'Pagamenti', path: '/dashboard/admin/pagamenti', icon: CreditCard },
+            { label: 'Riconciliazione', path: '/dashboard/admin/riconciliazione', icon: ArrowLeftRight },
+        ],
+    },
+    {
+        label: 'Garanzia',
+        items: [
+            { label: 'Morosità', path: '/dashboard/admin/morosita', icon: ShieldAlert },
+            { label: 'Indennizzi', path: '/dashboard/admin/indennizzi', icon: HandCoins },
+            { label: 'Riassicurazione', path: '/dashboard/admin/riassicurazione', icon: Umbrella },
+        ],
+    },
+    {
+        label: 'Tesoreria e conti',
+        items: [
+            { label: 'Bonifici in uscita', path: '/dashboard/admin/bonifici', icon: Banknote },
             { label: 'Provvigioni', path: '/dashboard/admin/provvigioni', icon: Percent },
             { label: 'Contabilità', path: '/dashboard/admin/contabilita', icon: Calculator },
         ],
     },
     {
-        label: 'Persone',
+        label: 'Comunicazioni',
         items: [
-            { label: 'Collaboratori', path: '/dashboard/admin/collaboratori', icon: UserCog },
+            { label: 'Email', path: '/dashboard/admin/email', icon: Mail },
+            { label: 'Notifiche e SMS', path: '/dashboard/admin/notifiche', icon: Smartphone },
+            { label: 'Assistenza', path: '/dashboard/admin/assistenza', icon: MessageSquare },
         ],
     },
     {
-        label: 'Sistema',
+        label: 'Sito pubblico',
+        items: [
+            { label: 'Testi', path: '/dashboard/admin/testi', icon: Type },
+            { label: 'FAQ', path: '/dashboard/admin/faq', icon: HelpCircle },
+        ],
+    },
+    {
+        label: 'Prodotto e direzione',
         items: [
             { label: 'Prodotti', path: '/dashboard/admin/prodotti', icon: Package },
-            { label: 'FAQ', path: '/dashboard/admin/faq', icon: HelpCircle },
-            { label: 'Email', path: '/dashboard/admin/email', icon: Mail },
-            { label: 'Analytics', path: '/dashboard/admin/analytics', icon: BarChart3 },
+            { label: 'Vendite', path: '/dashboard/admin/vendite', icon: ShoppingCart },
+        ],
+    },
+    {
+        label: 'Persone e sistema',
+        items: [
+            { label: 'Collaboratori', path: '/dashboard/admin/collaboratori', icon: UserCog },
             { label: 'Impostazioni', path: '/dashboard/admin/impostazioni', icon: Settings },
         ],
     },
 ];
 
-const ROLE_LABELS = {
-    admin: 'Amministratore',
-    admin_visione: 'Admin (solo visione)',
-    manager: 'Manager',
-};
+// In testata, con che funzione si sta lavorando.
+const FunzioneInTestata = ({ operatore }) => (
+    <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-foreground">
+        <Gauge className="w-3.5 h-3.5 text-muted-foreground" /> {FUNZIONI[operatore.funzione]?.etichetta}
+    </span>
+);
 
-const AdminLayout = ({ children }) => {
-    const { user, logout } = useAuth();
-    const location = useLocation();
-    const navigate = useNavigate();
+// Le voci che non sono di chi guarda non compaiono nel menu.
+const menuPer = (operatore) => NAV_GROUPS
+    .map(g => ({ ...g, items: g.items.filter(v => !v.soloAdmin || operatore?.funzione === 'admin') }))
+    .filter(g => g.items.length > 0);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-
-    const isActive = (path) => {
-        if (path === '/dashboard/admin') return location.pathname === path;
-        return location.pathname.startsWith(path);
-    };
-
-    // Trova l'item attivo per il breadcrumb
-    const allItems = NAV_GROUPS.flatMap(g => g.items);
-    const activeItem = allItems.find(n => isActive(n.path));
-
+const AdminLayout = ({ children, titolo }) => {
+    const { operatore } = useOperatoreAttivo();
     return (
-        <div className="flex h-screen bg-background overflow-hidden">
-
-            {/* ── Sidebar ─────────────────────────────────────────────── */}
-            <aside className="w-64 flex-shrink-0 bg-card border-r border-border flex flex-col">
-
-                {/* Logo */}
-                <div className="h-20 flex items-center justify-center px-5 border-b border-border flex-shrink-0">
-                    <Link to="/dashboard/admin" className="flex items-center">
-                        <img src={LOGO_URL} alt="CRIA" className="h-14 w-auto" />
-                    </Link>
-                </div>
-
-                {/* Nav */}
-                <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
-                    {NAV_GROUPS.map((group) => (
-                        <div key={group.label}>
-                            <div className="px-3 mb-2 text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/70">
-                                {group.label}
-                            </div>
-                            <div className="space-y-0.5">
-                                {group.items.map(({ label, path, icon: Icon }) => {
-                                    const active = isActive(path);
-                                    return (
-                                        <Link
-                                            key={path}
-                                            to={path}
-                                            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group ${active
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                                                }`}
-                                        >
-                                            <Icon className="w-4 h-4 flex-shrink-0" />
-                                            <span className="truncate">{label}</span>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                </nav>
-
-                {/* User + logout */}
-                <div className="border-t border-border p-4 flex-shrink-0">
-                    <Link
-                        to="/dashboard/admin/profilo"
-                        className="flex items-center gap-3 mb-3 p-1.5 rounded-lg hover:bg-accent transition-colors group"
-                    >
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs font-bold text-primary uppercase">
-                                {user?.name?.charAt(0) || 'A'}
-                            </span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
-                            <p className="text-xs text-muted-foreground">{ROLE_LABELS[user?.role] || user?.role}</p>
-                        </div>
-                        <User className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </Link>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleLogout}
-                        className="w-full gap-2 text-muted-foreground"
-                    >
-                        <LogOut className="w-4 h-4" />
-                        Esci
-                    </Button>
-                </div>
-            </aside>
-
-            {/* ── Contenuto principale ────────────────────────────────── */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Topbar */}
-                <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 flex-shrink-0">
-                    {/* Breadcrumb */}
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>Admin</span>
-                        {location.pathname !== '/dashboard/admin' && activeItem && (
-                            <>
-                                <ChevronRight className="w-4 h-4" />
-                                <span className="text-foreground font-medium">
-                                    {activeItem.label}
-                                </span>
-                            </>
-                        )}
-                    </div>
-                </header>
-
-                {/* Pagina */}
-                <main className="flex-1 overflow-y-auto p-6 bg-muted/30">
-                    {children}
-                </main>
-            </div>
-
-        </div>
+        <DashboardLayout area="admin" navGroups={menuPer(operatore)} titolo={titolo} azioniTestata={operatore && <FunzioneInTestata operatore={operatore} />}>
+            {operatore ? children : (
+                <p className="text-sm text-muted-foreground">Questo account non ha una funzione interna: chiedi all’admin di assegnartela.</p>
+            )}
+        </DashboardLayout>
     );
 };
 

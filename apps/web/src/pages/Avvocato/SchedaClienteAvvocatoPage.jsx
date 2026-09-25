@@ -10,6 +10,9 @@ import {
     Clock, Eye, Plus, Edit2, Save
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { etichettaRuolo } from '@/lib/etichette';
+import { fmtQuando } from '@/lib/formato';
+import { Messaggio, MessaggioDiSistema } from '@/components/aree/Messaggio';
 
 // ─── Mock cliente ──────────────────────────────────────────────────────────────
 const CLIENTE = {
@@ -18,7 +21,7 @@ const CLIENTE = {
     ruolo: 'inquilino',
     email: 'sofia.martini@email.it',
     telefono: '+39 347 9876543',
-    codiceFiscale: 'MRTSFI88L42F205Z',
+    codiceFiscale: 'MRTSFI88L42F205V',
     indirizzoResidenza: 'Via Roma 42, 20100 Milano',
     immobile: 'Via Roma 42, Milano',
     controparte: { nome: 'Marco Bianchi', ruolo: 'locatore', email: 'marco.bianchi@email.it' },
@@ -80,13 +83,16 @@ const RUOLO_BADGE = {
     agenzia: 'bg-purple-100 text-purple-800',
 };
 
-const MSG_STYLE = {
-    sistema: 'bg-muted/60 text-muted-foreground italic text-xs text-center py-2',
-    cliente: 'bg-muted text-foreground',
-    avvocato: 'bg-primary/10 text-foreground ml-8',
-    inquilino: 'bg-green-50 text-foreground',
-    locatore: 'bg-blue-50 text-foreground',
-};
+// Un messaggio del thread: quelli dell'avvocato (i miei) a destra, gli altri a sinistra.
+const MessaggioThread = ({ m }) => (
+    m.ruolo === 'sistema'
+        ? <MessaggioDiSistema>{m.testo}</MessaggioDiSistema>
+        : (
+            <Messaggio mio={m.ruolo === 'avvocato'} autore={m.mittente} ruolo={etichettaRuolo(m.ruolo)} quando={fmtQuando(m.data)}>
+                {m.testo}
+            </Messaggio>
+        )
+);
 
 // ─── Tab contestazioni ─────────────────────────────────────────────────────────
 const TabContestazioni = ({ contestazioni, setContestazioni }) => {
@@ -100,7 +106,7 @@ const TabContestazioni = ({ contestazioni, setContestazioni }) => {
             id: Date.now(),
             mittente: 'Avv. Conti',
             testo: messaggio,
-            data: new Date().toLocaleString('it-IT'),
+            data: 'adesso',
             ruolo: 'avvocato',
         };
         setContestazioni(prev => prev.map(x => x.id === c.id ? { ...x, messaggi: [...x.messaggi, nuovo] } : x));
@@ -118,7 +124,7 @@ const TabContestazioni = ({ contestazioni, setContestazioni }) => {
 
     const risolvi = (esito) => {
         setContestazioni(prev => prev.map(x => x.id === c.id ? { ...x, stato: 'risolta', esito } : x));
-        toast.success(`Contestazione risolta a favore ${esito === 'favore_inquilino' ? 'inquilino' : 'locatore'}`);
+        toast.success(`Contestazione risolta a favore ${esito === 'favore_inquilino' ? 'inquilino' : 'proprietario'}`);
     };
 
     if (contestazioni.length === 0) {
@@ -167,7 +173,7 @@ const TabContestazioni = ({ contestazioni, setContestazioni }) => {
                                 <div className="flex flex-wrap gap-2">
                                     <Button size="sm" variant="outline" className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
                                         onClick={() => risolvi('favore_locatore')}>
-                                        <CheckCircle2 className="w-4 h-4" /> Risolvi a favore locatore
+                                        <CheckCircle2 className="w-4 h-4" /> Risolvi a favore proprietario
                                     </Button>
                                     <Button size="sm" variant="outline" className="gap-2 text-green-600 border-green-200 hover:bg-green-50"
                                         onClick={() => risolvi('favore_inquilino')}>
@@ -185,7 +191,7 @@ const TabContestazioni = ({ contestazioni, setContestazioni }) => {
                                     <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-foreground truncate">{doc.nome}</p>
-                                        <p className="text-xs text-muted-foreground">{doc.caricatoDa} · {doc.data}</p>
+                                        <p className="text-xs text-muted-foreground">{etichettaRuolo(doc.caricatoDa)} · {doc.data}</p>
                                     </div>
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${DOC_BADGE[doc.stato]}`}>
                                         {doc.stato}
@@ -203,18 +209,8 @@ const TabContestazioni = ({ contestazioni, setContestazioni }) => {
                         {/* Thread */}
                         <div className="space-y-2">
                             <p className="text-xs font-semibold text-muted-foreground uppercase">Comunicazioni</p>
-                            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                                {c.messaggi.map(m => (
-                                    <div key={m.id} className={`p-3 rounded-xl text-sm ${MSG_STYLE[m.ruolo] || 'bg-muted'}`}>
-                                        {m.ruolo !== 'sistema' && (
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="font-semibold text-xs">{m.mittente}</span>
-                                                <span className="text-xs text-muted-foreground">{m.data}</span>
-                                            </div>
-                                        )}
-                                        <p>{m.testo}</p>
-                                    </div>
-                                ))}
+                            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                                {c.messaggi.map(m => <MessaggioThread key={m.id} m={m} />)}
                             </div>
 
                             {c.stato !== 'risolta' && c.stato !== 'chiusa' && (
@@ -283,7 +279,7 @@ const TabTicket = ({ tickets, setTickets }) => {
             id: Date.now(),
             mittente: 'Avv. Conti',
             testo: messaggio,
-            data: new Date().toLocaleString('it-IT'),
+            data: 'adesso',
             ruolo: 'avvocato',
         };
         setTickets(prev => prev.map(x => x.id === t.id ? { ...x, messaggi: [...x.messaggi, nuovo] } : x));
@@ -329,16 +325,8 @@ const TabTicket = ({ tickets, setTickets }) => {
                             </span>
                         </div>
 
-                        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                            {t.messaggi.map(m => (
-                                <div key={m.id} className={`p-3 rounded-xl text-sm ${MSG_STYLE[m.ruolo] || 'bg-muted'}`}>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="font-semibold text-xs">{m.mittente}</span>
-                                        <span className="text-xs text-muted-foreground">{m.data}</span>
-                                    </div>
-                                    <p>{m.testo}</p>
-                                </div>
-                            ))}
+                        <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                            {t.messaggi.map(m => <MessaggioThread key={m.id} m={m} />)}
                         </div>
 
                         <div className="flex gap-2 pt-2 border-t border-border">
@@ -421,7 +409,7 @@ const SchedaClienteAvvocatoPage = () => {
         <>
             <Helmet><title>{`${CLIENTE.nome} - CRIA Avvocato`}</title></Helmet>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <div className="space-y-6">
 
                 {/* Breadcrumb */}
                 <div className="flex items-center gap-2 text-sm">
@@ -447,7 +435,7 @@ const SchedaClienteAvvocatoPage = () => {
                                 <div className="flex items-center gap-2 flex-wrap mb-1">
                                     <h1 className="text-xl font-bold text-foreground">{CLIENTE.nome}</h1>
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${RUOLO_BADGE[CLIENTE.ruolo]}`}>
-                                        {CLIENTE.ruolo}
+                                        {etichettaRuolo(CLIENTE.ruolo)}
                                     </span>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-sm">

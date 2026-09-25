@@ -12,8 +12,8 @@ import {
 const SCADENZE = [
     { id: 1, data: '2026-05-04', tipo: 'documento', titolo: 'Verifica documenti contestazione', descrizione: 'Documenti caricati da Marco Esposito', ref: '/dashboard/avvocato/clienti/4', priorita: 'alta', cliente: 'Marco Esposito' },
     { id: 2, data: '2026-05-04', tipo: 'ticket', titolo: 'Risposta entro 48h', descrizione: 'Ticket aperto da Sofia Martini', ref: '/dashboard/avvocato/clienti/2', priorita: 'alta', cliente: 'Sofia Martini' },
-    { id: 3, data: '2026-05-05', tipo: 'contestazione', titolo: 'Chiusura contestazione #2', descrizione: 'Finestra di 7 giorni in scadenza', ref: '/dashboard/avvocato/clienti/4', priorita: 'alta', cliente: 'Marco Esposito' },
-    { id: 4, data: '2026-05-08', tipo: 'contestazione', titolo: 'Chiusura contestazione #5', descrizione: 'Aperta da locatore', ref: '/dashboard/avvocato/clienti/7', priorita: 'media', cliente: 'Chiara Lombardi' },
+    { id: 3, data: '2026-05-05', tipo: 'contestazione', titolo: 'Chiusura contestazione #2', descrizione: 'Termine di 5 giorni per la decisione in scadenza', ref: '/dashboard/avvocato/clienti/4', priorita: 'alta', cliente: 'Marco Esposito' },
+    { id: 4, data: '2026-05-08', tipo: 'contestazione', titolo: 'Chiusura contestazione #5', descrizione: 'Aperta dall\'inquilino', ref: '/dashboard/avvocato/clienti/7', priorita: 'media', cliente: 'Chiara Lombardi' },
     { id: 5, data: '2026-05-10', tipo: 'documento', titolo: 'Visura camerale scaduta', descrizione: 'Studio Conti — richiedere aggiornamento', ref: '/dashboard/avvocato/clienti/8', priorita: 'media', cliente: 'Studio Conti' },
     { id: 6, data: '2026-05-12', tipo: 'ticket', titolo: 'Risposta cliente in attesa', descrizione: 'Sara Conti — chiarimento contratto', ref: '/dashboard/avvocato/clienti/5', priorita: 'media', cliente: 'Sara Conti' },
     { id: 7, data: '2026-05-20', tipo: 'documento', titolo: 'Aggiornamento note pratica', descrizione: 'Luca Romano — pratica in revisione', ref: '/dashboard/avvocato/clienti/3', priorita: 'bassa', cliente: 'Luca Romano' },
@@ -148,7 +148,7 @@ const ScadenzeAvvocatoPage = () => {
         <>
             <Helmet><title>Scadenze - CRIA Avvocato</title></Helmet>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <div className="space-y-6">
 
                 <div>
                     <h1 className="text-2xl font-bold text-foreground mb-1">Scadenze</h1>

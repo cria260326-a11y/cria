@@ -1,49 +1,67 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+import { PRODOTTI } from '@/data/catalogo';
+import { useT } from '@/lib/testi';
+import Ricco from '@/components/testi/Ricco';
+
 const fontHeader = `'Fraunces', 'Source Serif Pro', Georgia, serif`;
 const fontBody = `'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
 const fontMono = `'JetBrains Mono', 'SF Mono', monospace`;
 const fontSettingsSoft = "'SOFT' 50, 'opsz' 144";
 
+// Le colonne di link. I testi sono in src/testi/catalogo/comune.js (l'admin li
+// cambia da Testi); i nomi dei prodotti arrivano dal catalogo dei prodotti.
+// Le agenzie non hanno ancora una pagina: la voce porta al supporto.
+const useColonne = () => {
+    const t = useT();
+    return [
+        {
+            id: 'perChiE',
+            titolo: t('comune.piede.perChiE.titolo'),
+            link: [
+                { id: 'proprietari', l: t('comune.piede.perChiE.proprietari'), to: '/per-proprietari' },
+                { id: 'inquilini', l: t('comune.piede.perChiE.inquilini'), to: '/per-inquilini' },
+                { id: 'verifica', l: PRODOTTI.P3.nome, to: '/verifica' },
+                { id: 'agenzie', l: t('comune.piede.perChiE.agenzie', { nomeProdotto: PRODOTTI.P6.nome }), to: '/supporto' },
+            ],
+        },
+        {
+            id: 'risorse',
+            titolo: t('comune.piede.risorse.titolo'),
+            link: [
+                { id: 'comeFunziona', l: t('comune.piede.risorse.comeFunziona'), to: '/come-funziona' },
+                { id: 'verificaCertificato', l: t('comune.piede.risorse.verificaCertificato'), to: '/verifica-certificato' },
+                { id: 'supporto', l: t('comune.piede.risorse.supporto'), to: '/supporto' },
+                { id: 'inizia', l: t('comune.piede.risorse.inizia'), to: '/inizia' },
+            ],
+        },
+        {
+            id: 'account',
+            titolo: t('comune.piede.account.titolo'),
+            link: [
+                { id: 'accedi', l: t('comune.piede.account.accedi'), to: '/login' },
+                { id: 'registrati', l: t('comune.piede.account.registrati'), to: '/signup' },
+            ],
+        },
+        {
+            id: 'legali',
+            titolo: t('comune.piede.legali.titolo'),
+            link: [
+                { id: 'privacy', l: t('comune.piede.legali.privacy'), to: '/privacy' },
+                { id: 'termini', l: t('comune.piede.legali.termini'), to: '/termini' },
+                { id: 'cookie', l: t('comune.piede.legali.cookie'), to: '/cookie' },
+            ],
+        },
+    ];
+};
+
 /**
  * Footer condiviso per tutte le pagine vetrina.
  */
 const VetrinaFooter = () => {
-    const colonne = [
-        {
-            titolo: 'Prodotti',
-            link: [
-                { l: 'Per locatori', to: '/per-locatori' },
-                { l: 'Per inquilini', to: '/per-inquilini' },
-                { l: 'CRIA Verifica', to: '/verifica' },
-            ],
-        },
-        {
-            titolo: 'Risorse',
-            link: [
-                { l: 'Come funziona', to: '/come-funziona' },
-                { l: 'FAQ e contatti', to: '/supporto' },
-                { l: 'Inizia ora', to: '/inizia' },
-            ],
-        },
-        {
-            titolo: 'Account',
-            link: [
-                { l: 'Accedi', to: '/login' },
-                { l: 'Registrati', to: '/signup' },
-            ],
-        },
-        {
-            titolo: 'Legali',
-            link: [
-                { l: 'Privacy', to: '/privacy' },
-                { l: 'Termini', to: '/termini' },
-                { l: 'Cookie', to: '/cookie' },
-            ],
-        },
-    ];
-
+    const t = useT();
+    const colonne = useColonne();
     return (
         <footer
             className="py-12"
@@ -53,7 +71,7 @@ const VetrinaFooter = () => {
 
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-8">
 
-                    {/* Logo + descrizione + social */}
+                    {/* Logo + descrizione */}
                     <div className="col-span-2 md:col-span-2">
                         <Link to="/" className="flex items-center gap-2 mb-4">
                             <div
@@ -78,37 +96,21 @@ const VetrinaFooter = () => {
                                     className="text-[8px] uppercase tracking-[0.18em] mt-0.5"
                                     style={{ color: 'rgba(232, 181, 156, 0.7)', fontFamily: fontMono }}
                                 >
-                                    Centrale Rischi Italia Affitti
+                                    {t('comune.piede.marchio')}
                                 </div>
                             </div>
                         </Link>
                         <p
-                            className="text-xs leading-relaxed mb-4 max-w-xs"
+                            className="text-xs leading-relaxed max-w-xs"
                             style={{ fontFamily: fontBody, color: 'rgba(255, 255, 255, 0.55)' }}
                         >
-                            La prima centrale rischi italiana dedicata agli affitti.
+                            <Ricco>{t('comune.piede.descrizione')}</Ricco>
                         </p>
-                        <div className="flex gap-2">
-                            {['LK', 'IG', 'X'].map((s) => (
-                                <a
-                                    key={s}
-                                    href="#"
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors hover:bg-[#FFFFFF] hover:text-[#1A2D52]"
-                                    style={{
-                                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                                        color: 'rgba(255, 255, 255, 0.7)',
-                                        fontFamily: fontMono,
-                                    }}
-                                >
-                                    {s}
-                                </a>
-                            ))}
-                        </div>
                     </div>
 
                     {/* Colonne link */}
                     {colonne.map((col) => (
-                        <div key={col.titolo}>
+                        <div key={col.id}>
                             <p
                                 className="text-[10px] uppercase tracking-wider mb-3 font-semibold"
                                 style={{ fontFamily: fontMono, color: 'rgba(232, 181, 156, 0.8)' }}
@@ -117,7 +119,7 @@ const VetrinaFooter = () => {
                             </p>
                             <ul className="space-y-2">
                                 {col.link.map((l) => (
-                                    <li key={l.l}>
+                                    <li key={l.id}>
                                         <Link
                                             to={l.to}
                                             className="text-xs transition-colors hover:text-[#FFFFFF]"
@@ -141,20 +143,20 @@ const VetrinaFooter = () => {
                         className="text-[10px]"
                         style={{ fontFamily: fontMono, color: 'rgba(255, 255, 255, 0.4)' }}
                     >
-                        © 2026 CRIA · Tutti i diritti riservati · P.IVA 12345678901
+                        {t('comune.piede.copyright')}{' · '}{t('comune.piede.partitaIva')}
                     </p>
                     <div className="flex items-center gap-2">
                         <span
                             className="text-[10px] uppercase tracking-wider"
                             style={{ fontFamily: fontMono, color: 'rgba(255, 255, 255, 0.4)' }}
                         >
-                            Made in
+                            {t('comune.piede.madeIn')}
                         </span>
                         <span
                             className="text-xs font-semibold"
                             style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: 'rgba(255, 255, 255, 0.7)' }}
                         >
-                            Italia 🇮🇹
+                            {t('comune.piede.italia')}
                         </span>
                     </div>
                 </div>

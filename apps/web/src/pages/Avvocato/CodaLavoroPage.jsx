@@ -17,7 +17,7 @@ const TASK_INIZIALI = [
     { id: 4, tipo: 'ticket', titolo: 'Domanda su clausola contratto', cliente: 'Sofia Martini', clienteId: 2, dataAssegnazione: '2026-05-03', priorita: 'alta', note: 'Cliente in attesa da 2 giorni' },
     { id: 5, tipo: 'ticket', titolo: 'Richiesta chiarimento su contestazione', cliente: 'Luca Romano', clienteId: 3, dataAssegnazione: '2026-05-02', priorita: 'media', note: '' },
     { id: 6, tipo: 'contestazione', titolo: 'Contestazione #2 — Pagamento contestato', cliente: 'Marco Esposito', clienteId: 4, dataAssegnazione: '2026-04-30', priorita: 'alta', note: 'In verifica documenti' },
-    { id: 7, tipo: 'contestazione', titolo: 'Contestazione #5 — Mancato pagamento', cliente: 'Chiara Lombardi', clienteId: 7, dataAssegnazione: '2026-05-01', priorita: 'media', note: 'Aperta dal locatore' },
+    { id: 7, tipo: 'contestazione', titolo: 'Contestazione #5 — Mancato pagamento', cliente: 'Chiara Lombardi', clienteId: 7, dataAssegnazione: '2026-05-01', priorita: 'media', note: 'Aperta dall\'inquilino' },
     { id: 8, tipo: 'documento', titolo: 'Atto di proprietà.pdf', cliente: 'Marco Bianchi', clienteId: 1, dataAssegnazione: '2026-05-03', priorita: 'bassa', note: '' },
 ];
 
@@ -67,7 +67,7 @@ const CodaLavoroPage = () => {
         <>
             <Helmet><title>Coda di lavoro - CRIA Avvocato</title></Helmet>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <div className="space-y-6">
 
                 <div>
                     <h1 className="text-2xl font-bold text-foreground mb-1">Coda di lavoro</h1>

@@ -18,9 +18,9 @@ const PROFILO_INIZIALE = {
     id: 7,
     nome: 'Roberto',
     cognome: 'Bruno',
-    email: 'roberto.bruno@cria.it',
+    email: 'roberto.bruno@cri-affitti.it',
     telefono: '+39 339 1234567',
-    codiceFiscale: 'BRNRBR80A01F205Z',
+    codiceFiscale: 'BRNRBR80A01F205K',
 
     // Dati pagamento
     partitaIVA: 'IT01234567890',
@@ -54,7 +54,7 @@ const SESSIONI = [
     { id: 2, dispositivo: 'iPhone · Safari', posizione: 'Milano, IT', data: '2026-05-03 19:00', corrente: false },
 ];
 
-const URL_REFERENTE = `https://cria.it/registrazione?ref=${PROFILO_INIZIALE.codiceReferente}`;
+const URL_REFERENTE = `https://cri-affitti.it/signup?ref=${PROFILO_INIZIALE.codiceReferente}`;
 
 // ─── Campo editabile ──────────────────────────────────────────────────────────
 const CampoEditabile = ({ label, value, onSave, type = 'text', icon: Icon, readonly }) => {
@@ -169,7 +169,7 @@ const ProfiloCommercialePage = () => {
         <>
             <Helmet><title>Profilo - CRIA Commerciale</title></Helmet>
 
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <div className="space-y-6">
 
                 {/* Intestazione */}
                 <div className="flex items-start justify-between flex-wrap gap-4">

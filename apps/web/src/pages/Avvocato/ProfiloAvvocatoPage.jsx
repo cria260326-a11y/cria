@@ -21,7 +21,7 @@ const PROFILO_INIZIALE = {
     titolo: 'Avv.',
     email: 'paolo.conti@studioconti.it',
     telefono: '+39 339 1234567',
-    codiceFiscale: 'CNTPLA75A01F205Z',
+    codiceFiscale: 'CNTPLA75A01F205T',
 
     // Dati professionali
     numeroAlbo: '12345',
@@ -154,7 +154,7 @@ const ProfiloAvvocatoPage = () => {
         <>
             <Helmet><title>Profilo - CRIA Avvocato</title></Helmet>
 
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <div className="space-y-6">
 
                 {/* Intestazione */}
                 <div className="flex items-start justify-between flex-wrap gap-4">

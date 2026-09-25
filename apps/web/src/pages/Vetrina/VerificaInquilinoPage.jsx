@@ -2,32 +2,97 @@ import React, { useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
+import { useFaqPubbliche } from '@/lib/faqDemo';
 import {
-    ArrowRight, ArrowUpRight, CheckCircle2, AlertTriangle,
-    XCircle, Search, Mail, Lock, Plus, Zap, FileText,
-    CreditCard, ShieldCheck, Building2, Home, Users, Clock
+    ArrowRight, ArrowUpRight, CheckCircle2, AlertTriangle, XCircle, Hourglass,
+    Search, Mail, Lock, Plus, Clock, Receipt, UserCheck, ShieldCheck,
+    Building2, FileText, Eye
 } from 'lucide-react';
 
 import VetrinaHeader from '@/components/VetrinaHeader';
 import VetrinaFooter from '@/components/VetrinaFooter';
+import Ricco, { semplice } from '@/components/testi/Ricco';
+import { useT } from '@/lib/testi';
+import { PRODOTTI, PRODOTTI_PROPRIETARIO, nomeProdotto, prezzoProdotto, fmtEuro } from '@/data/catalogo';
+import { SEMAFORO, ORDINE_SEMAFORO, MESI_SEMAFORO } from '@/lib/semaforo';
+
+// I testi sono in src/testi/catalogo/verifica.js: l'admin li cambia da Admin → Testi.
+// Qui restano nome e prezzo di CRIA Verifica, ore e giorni, che vengono dal listino.
 
 const fontHeader = `'Fraunces', 'Source Serif Pro', Georgia, serif`;
 const fontBody = `'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
 const fontMono = `'JetBrains Mono', 'SF Mono', monospace`;
 const fontSettingsSoft = "'SOFT' 50, 'opsz' 144";
 
+// non ha ancora questo valore: sta qui, in un posto solo.
+const P3 = PRODOTTI.P3;
+const PREZZO = fmtEuro(P3.prezzo);
+const ORE = P3.oreEsito;
+const GIORNI_SCALA = P3.scalabileEntroGiorni;
+
+// La risposta «non abbiamo informazioni in merito» (verifica.nessunaInformazione) dentro
+// una frase: con l'iniziale minuscola.
+const minuscola = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+
+const ICONA_SEMAFORO = {
+    verde: CheckCircle2,
+    giallo: AlertTriangle,
+    rosso: XCircle,
+    storico_insufficiente: Hourglass,
+};
+
+const fmtData = (d) => d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+
+// ─── MATTONI DI TIPOGRAFIA ────────────────────────────────────────────────────
+const Occhiello = ({ inView, colore = '#C97B5C', className = 'mb-6', children }) => (
+    <motion.div
+        initial={{ opacity: 0 }}
+        animate={inView ? { opacity: 1 } : {}}
+        transition={{ duration: 0.6 }}
+        className={`text-xs uppercase tracking-[0.25em] ${className}`}
+        style={{ fontFamily: fontMono, color: colore }}
+    >
+        {children}
+    </motion.div>
+);
+
+const Titolo = ({ inView, colore = '#1A2D52', size = 'clamp(2rem, 5vw, 3.75rem)', className = 'mb-6', children }) => (
+    <motion.h2
+        initial={{ opacity: 0, y: 20 }}
+        animate={inView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.8 }}
+        className={`leading-[1.05] tracking-tight ${className}`}
+        style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: colore, fontSize: size, fontWeight: 400 }}
+    >
+        {children}
+    </motion.h2>
+);
+
+const Corsivo = ({ colore = '#C97B5C', children }) => (
+    <span className="italic" style={{ color: colore }}>{children}</span>
+);
+
+// Le parti *in evidenza* dei titoli: il corsivo colorato, terracotta o chiaro.
+const inCorsivo = (s) => <Corsivo>{s}</Corsivo>;
+const inCorsivoChiaro = (s) => <Corsivo colore="#E8B59C">{s}</Corsivo>;
+
 // ─── HERO ─────────────────────────────────────────────────────────────────────
+// Le icone dei tre punti sotto i pulsanti: i testi sono verifica.hero.punto1…3.
+const ICONE_PUNTI = [Clock, Lock, Receipt];
+
 const Hero = () => {
-    const scrollToEsito = () => {
-        const el = document.getElementById('esito');
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
+    const t = useT();
+    const nessunaInformazione = minuscola(t('verifica.nessunaInformazione'));
+    const punti = ICONE_PUNTI.map((icon, i) => ({
+        icon,
+        label: t(`verifica.hero.punto${i + 1}`, { ore: ORE, giorni: GIORNI_SCALA }),
+    }));
 
     return (
         <section className="relative pt-32 pb-20 overflow-hidden" style={{ background: '#FFFFFF' }}>
-            <div className="absolute top-32 right-0 w-1 h-72 rounded-full opacity-30" style={{ background: '#22C55E' }} />
-            <div className="absolute top-32 right-3 w-1 h-48 rounded-full opacity-30" style={{ background: '#F59E0B' }} />
-            <div className="absolute top-32 right-6 w-1 h-32 rounded-full opacity-30" style={{ background: '#EF4444' }} />
+            <div className="hidden md:block absolute top-32 right-0 w-1 h-72 rounded-full opacity-30" style={{ background: SEMAFORO.verde.colore }} />
+            <div className="hidden md:block absolute top-32 right-3 w-1 h-48 rounded-full opacity-30" style={{ background: SEMAFORO.giallo.colore }} />
+            <div className="hidden md:block absolute top-32 right-6 w-1 h-32 rounded-full opacity-30" style={{ background: SEMAFORO.rosso.colore }} />
 
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12 relative">
                 <div className="grid lg:grid-cols-12 gap-12 items-center">
@@ -44,7 +109,7 @@ const Hero = () => {
                                 <span className="relative inline-flex w-2 h-2 rounded-full" style={{ background: '#C97B5C' }} />
                             </span>
                             <span className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: '#C97B5C', fontFamily: fontMono }}>
-                                CRIA Verifica
+                                {t('verifica.hero.occhiello', { nomeProdotto: P3.nome, prezzo: PREZZO })}
                             </span>
                         </motion.div>
 
@@ -62,8 +127,7 @@ const Hero = () => {
                                 letterSpacing: '-0.03em',
                             }}
                         >
-                            Scopri chi entrerà a casa Tua.<br />
-                            <span className="italic" style={{ color: '#C97B5C' }}>Prima di firmare.</span>
+                            <Ricco evidenza={inCorsivo}>{t('verifica.hero.titolo')}</Ricco>
                         </motion.h1>
 
                         <motion.p
@@ -73,7 +137,7 @@ const Hero = () => {
                             className="text-lg lg:text-xl max-w-xl mb-10 leading-relaxed"
                             style={{ fontFamily: fontBody, color: '#6B6B5E', fontWeight: 400 }}
                         >
-                            Score storico, regolarità pagamenti, esito documentato. Una sola domanda, una sola risposta — niente abbonamenti, niente vincoli.
+                            <Ricco>{t('verifica.hero.sottotitolo', { ore: ORE, nessunaInformazione })}</Ricco>
                         </motion.p>
 
                         <motion.div
@@ -82,46 +146,37 @@ const Hero = () => {
                             transition={{ duration: 0.8, delay: 0.5 }}
                             className="flex flex-wrap gap-4 mb-12"
                         >
-                            <Link to="/inizia">
+                            <Link to="/verifica/nuova">
                                 <button className="group flex items-center gap-3 px-7 py-4 rounded-full text-base font-semibold transition-all hover:scale-[1.02] hover:shadow-2xl"
                                     style={{ background: '#1A2D52', color: '#FFFFFF', fontFamily: fontBody }}>
-                                    Verifica un inquilino
+                                    {t('verifica.hero.pulsanteRichiedi')}
                                     <span className="w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-1"
                                         style={{ background: '#FFFFFF', color: '#1A2D52' }}>
                                         <ArrowRight className="w-3.5 h-3.5" />
                                     </span>
                                 </button>
                             </Link>
-                            <button onClick={scrollToEsito} className="group flex items-center gap-3 px-7 py-4 rounded-full text-base font-semibold transition-all hover:scale-[1.02]"
-                                style={{
-                                    background: 'transparent',
-                                    color: '#1A2D52',
-                                    fontFamily: fontBody,
-                                    border: '1.5px solid rgba(26, 45, 82, 0.2)',
-                                }}>
-                                Vedi un esempio di esito
-                                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                            </button>
+                            <Link to="/signup">
+                                <button className="group flex items-center gap-3 px-7 py-4 rounded-full text-base font-semibold transition-all hover:scale-[1.02]"
+                                    style={{ background: 'transparent', color: '#1A2D52', fontFamily: fontBody, border: '1.5px solid rgba(26, 45, 82, 0.2)' }}>
+                                    {t('verifica.hero.pulsanteRegistrati')}
+                                    <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                                </button>
+                            </Link>
                         </motion.div>
 
-                        {/* Quick highlights */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ duration: 1, delay: 0.7 }}
-                            className="grid grid-cols-3 gap-6 max-w-lg pt-8"
+                            className="grid sm:grid-cols-3 gap-6 max-w-2xl pt-8"
                             style={{ borderTop: '1px solid rgba(26, 45, 82, 0.1)' }}
                         >
-                            {[
-                                { icon: Clock, label: 'Esito in 48h' },
-                                { icon: ShieldCheck, label: 'GDPR garantito' },
-                                { icon: Zap, label: 'Pagamento singolo' },
-                            ].map((s, i) => {
+                            {punti.map((s, i) => {
                                 const Icon = s.icon;
                                 return (
                                     <div key={i} className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                                            style={{ background: '#C97B5C15' }}>
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#C97B5C15' }}>
                                             <Icon className="w-4 h-4" style={{ color: '#C97B5C' }} />
                                         </div>
                                         <span className="text-xs font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>
@@ -139,7 +194,7 @@ const Hero = () => {
                         transition={{ duration: 1, delay: 0.4 }}
                         className="lg:col-span-5 relative"
                     >
-                        <MockupEsitoMail />
+                        <MockupEsito />
                     </motion.div>
                 </div>
             </div>
@@ -147,8 +202,13 @@ const Hero = () => {
     );
 };
 
-// ─── MOCKUP MAIL CON ESITO (HERO) ─────────────────────────────────────────────
-const MockupEsitoMail = () => {
+// ─── MOCKUP DELL'ESITO IN PIATTAFORMA ────────────────────────────────────────
+const MockupEsito = () => {
+    const t = useT();
+    const s = SEMAFORO.verde;
+    const richiesta = new Date(2026, 8, 14);
+    const esito = new Date(2026, 8, 15);
+
     return (
         <div className="relative">
             <motion.div
@@ -162,63 +222,69 @@ const MockupEsitoMail = () => {
                 }}
             >
                 <div className="flex items-center gap-1.5 px-4 py-3 border-b" style={{ borderColor: 'rgba(26, 45, 82, 0.08)' }}>
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#EF4444' }} />
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#F59E0B' }} />
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#22C55E' }} />
-                    <div className="ml-auto text-[10px]" style={{ fontFamily: fontMono, color: '#6B6B5E' }}>Esito CRIA Verifica</div>
+                    <div className="w-3 h-3 rounded-full" style={{ background: SEMAFORO.rosso.colore }} />
+                    <div className="w-3 h-3 rounded-full" style={{ background: SEMAFORO.giallo.colore }} />
+                    <div className="w-3 h-3 rounded-full" style={{ background: SEMAFORO.verde.colore }} />
+                    <span className="ml-auto text-[9px] uppercase tracking-wider px-2 py-1 rounded-full" style={{ background: '#F5F5F0', color: '#6B6B5E', fontFamily: fontMono }}>
+                        {t('verifica.esempio.etichetta')}
+                    </span>
                 </div>
 
-                <div className="p-6 space-y-4" style={{ background: '#F5F5F0' }}>
-
-                    <div className="flex items-center gap-3 pb-3" style={{ borderBottom: '1px solid rgba(26, 45, 82, 0.08)' }}>
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#1A2D52' }}>
-                            <Mail className="w-4 h-4" style={{ color: '#FFFFFF' }} />
+                <div className="p-6 space-y-4">
+                    <div className="pb-3" style={{ borderBottom: '1px solid rgba(26, 45, 82, 0.08)' }}>
+                        <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
+                            {t('verifica.esempio.occhiello')}
                         </div>
-                        <div className="flex-1">
-                            <div className="text-xs font-semibold" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                                esito@cria.it
-                            </div>
-                            <div className="text-[10px]" style={{ color: '#6B6B5E', fontFamily: fontBody }}>
-                                04 Maggio 2026, ore 14:23
-                            </div>
+                        <div className="text-base font-bold" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
+                            {t('verifica.esempio.titolo', { nomeProdotto: P3.nome })}
                         </div>
                     </div>
 
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                        Esito verifica · #VR-2026-0042
-                    </div>
-
-                    <div className="text-base font-bold" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                        Verifica di Sofia Martini
-                    </div>
-
-                    <div className="p-5 rounded-xl text-center"
-                        style={{ background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-3" style={{ background: '#22C55E' }}>
-                            <CheckCircle2 className="w-8 h-8" style={{ color: '#FFFFFF' }} />
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                        <div>
+                            <div className="text-[9px] uppercase" style={{ color: '#6B6B5E', fontFamily: fontMono }}>{t('verifica.esempio.voceCandidato')}</div>
+                            <div className="text-sm font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>{t('verifica.esempio.candidato')}</div>
                         </div>
-                        <div className="text-xl font-bold" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#166534' }}>
-                            Inquilino affidabile
+                        <div>
+                            <div className="text-[9px] uppercase" style={{ color: '#6B6B5E', fontFamily: fontMono }}>{t('verifica.esempio.voceCodiceFiscale')}</div>
+                            <div className="text-sm font-semibold" style={{ fontFamily: fontMono, color: '#1A2D52' }}>{t('verifica.esempio.codiceFiscale')}</div>
                         </div>
-                        <div className="text-xs mt-1" style={{ color: '#15803D', fontFamily: fontBody }}>
-                            Score: 94/100 · ultimi 12 mesi
+                        <div>
+                            <div className="text-[9px] uppercase" style={{ color: '#6B6B5E', fontFamily: fontMono }}>{t('verifica.esempio.voceRichiesta')}</div>
+                            <div className="text-sm font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>{fmtData(richiesta)}</div>
+                        </div>
+                        <div>
+                            <div className="text-[9px] uppercase" style={{ color: '#6B6B5E', fontFamily: fontMono }}>{t('verifica.esempio.voceEsito')}</div>
+                            <div className="text-sm font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>{fmtData(esito)}</div>
                         </div>
                     </div>
 
-                    <div>
-                        <div className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                            Storico pagamenti
+                    <div className="p-5 rounded-xl text-center" style={{ background: `${s.colore}14`, border: `1px solid ${s.colore}4D` }}>
+                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-3" style={{ background: s.colore }}>
+                            <CheckCircle2 className="w-7 h-7" style={{ color: '#FFFFFF' }} />
                         </div>
-                        <div className="flex gap-1">
-                            {Array.from({ length: 12 }).map((_, i) => (
-                                <div key={i} className="flex-1 h-6 rounded"
-                                    style={{ background: i === 8 ? '#F59E0B' : '#22C55E' }} />
-                            ))}
+                        <div className="text-xl font-bold" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
+                            {s.etichetta}
+                        </div>
+                        <div className="text-xs mt-1" style={{ color: '#6B6B5E', fontFamily: fontBody }}>
+                            {s.spiegazione}
                         </div>
                     </div>
 
-                    <div className="text-[10px] text-center pt-2" style={{ color: '#6B6B5E', fontFamily: fontBody }}>
-                        PDF allegato · 3 pagine
+                    <div className="p-3 rounded-lg" style={{ background: '#F5F5F0' }}>
+                        <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
+                            {t('verifica.esempio.voceSintesi')}
+                        </div>
+                        <p className="text-xs leading-relaxed" style={{ fontFamily: fontBody, color: '#1A1A1A' }}>
+                            {t('verifica.esempio.sintesi', { mesi: MESI_SEMAFORO })}
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                        <Eye className="w-3.5 h-3.5" style={{ color: '#6B6B5E' }} />
+                        <div className="text-[10px]" style={{ color: '#6B6B5E', fontFamily: fontBody }}>
+                            {t('verifica.esempio.nota')}
+                        </div>
                     </div>
                 </div>
             </motion.div>
@@ -227,21 +293,17 @@ const MockupEsitoMail = () => {
                 initial={{ opacity: 0, scale: 0.8, y: -20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ delay: 1.2, duration: 0.6 }}
-                className="absolute -top-4 -right-4 rounded-xl px-4 py-3"
-                style={{
-                    background: '#FFFFFF',
-                    boxShadow: '0 15px 35px -8px rgba(26, 45, 82, 0.2)',
-                    border: '1px solid rgba(26, 45, 82, 0.08)',
-                }}
+                className="absolute -top-4 -right-4 rounded-xl px-4 py-3 max-w-[220px]"
+                style={{ background: '#FFFFFF', boxShadow: '0 15px 35px -8px rgba(26, 45, 82, 0.2)', border: '1px solid rgba(26, 45, 82, 0.08)' }}
             >
-                <div className="flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />
+                <div className="flex items-start gap-2">
+                    <Mail className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: '#C97B5C' }} />
                     <div>
                         <div className="text-[9px] uppercase tracking-wider" style={{ fontFamily: fontMono, color: '#6B6B5E' }}>
-                            Tempo medio
+                            {t('verifica.esempio.email.occhiello')}
                         </div>
-                        <div className="text-sm font-bold" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                            48 ore
+                        <div className="text-xs font-semibold leading-snug" style={{ fontFamily: fontBody, color: '#1A2D52' }}>
+                            {t('verifica.esempio.email.testo')}
                         </div>
                     </div>
                 </div>
@@ -250,113 +312,102 @@ const MockupEsitoMail = () => {
     );
 };
 
-// ─── I 4 ESITI POSSIBILI ──────────────────────────────────────────────────────
-const EsitiPossibili = () => {
+// ─── COSA TI RESTITUISCE ──────────────────────────────────────────────────────
+const CosaRestituisce = () => {
+    const t = useT();
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: '-100px' });
 
-    const esiti = [
-        { color: '#22C55E', label: 'Verde', titolo: 'Affidabile', desc: 'Pagamenti regolari ultimi 12 mesi entro il giorno 5 di ogni mese.', icon: CheckCircle2 },
-        { color: '#F59E0B', label: 'Giallo', titolo: 'In ritardo', desc: 'Pagamenti spesso oltre il giorno 5, ma entro il giorno 10. Storico stabile.', icon: AlertTriangle },
-        { color: '#EF4444', label: 'Rosso', titolo: 'Irregolare', desc: 'Pagamenti saltuari o oltre il giorno 10. Possibili contestazioni aperte.', icon: XCircle },
-        { color: '#6B6B5E', label: 'Nessun dato', titolo: 'Non disponibile', desc: 'La persona non risulta nel nostro database. Nessun precedente da segnalare.', icon: Search },
-    ];
-
     return (
-        <section ref={ref} className="py-32" style={{ background: '#F5F5F0' }}>
+        <section id="esito" ref={ref} className="py-32" style={{ background: '#F5F5F0' }}>
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
 
-                <div className="grid lg:grid-cols-12 gap-12 mb-16">
-                    <div className="lg:col-span-7">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={inView ? { opacity: 1 } : {}}
-                            transition={{ duration: 0.6 }}
-                            className="text-xs uppercase tracking-[0.25em] mb-6"
-                            style={{ fontFamily: fontMono, color: '#C97B5C' }}
-                        >
-                            Cosa puoi ricevere
-                        </motion.div>
-
-                        <motion.h2
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={inView ? { opacity: 1, y: 0 } : {}}
-                            transition={{ duration: 0.8 }}
-                            className="leading-[1.05] tracking-tight mb-6"
-                            style={{
-                                fontFamily: fontHeader,
-                                fontVariationSettings: fontSettingsSoft,
-                                color: '#1A2D52',
-                                fontSize: 'clamp(2rem, 5vw, 3.75rem)',
-                                fontWeight: 400,
-                            }}
-                        >
-                            Quattro esiti, <span className="italic" style={{ color: '#C97B5C' }}>una decisione informata.</span>
-                        </motion.h2>
-
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={inView ? { opacity: 1 } : {}}
-                            transition={{ duration: 0.8, delay: 0.2 }}
-                            className="text-lg leading-relaxed max-w-2xl"
-                            style={{ fontFamily: fontBody, color: '#6B6B5E' }}
-                        >
-                            Ogni verifica produce uno di questi quattro esiti. Anche "nessun dato" è una risposta utile: significa che non ci sono precedenti negativi da segnalare.
-                        </motion.p>
-                    </div>
+                <div className="max-w-4xl mb-16">
+                    <Occhiello inView={inView}>{t('verifica.esito.occhiello')}</Occhiello>
+                    <Titolo inView={inView}>
+                        <Ricco evidenza={inCorsivo}>{t('verifica.esito.titolo')}</Ricco>
+                    </Titolo>
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={inView ? { opacity: 1 } : {}}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                        className="text-lg leading-relaxed max-w-2xl"
+                        style={{ fontFamily: fontBody, color: '#6B6B5E' }}
+                    >
+                        <Ricco>{t('verifica.esito.intro', { mesi: MESI_SEMAFORO })}</Ricco>
+                    </motion.p>
                 </div>
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {esiti.map((e, i) => {
-                        const Icon = e.icon;
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    {ORDINE_SEMAFORO.map((k, i) => {
+                        const s = SEMAFORO[k];
+                        const Icon = ICONA_SEMAFORO[k];
                         return (
                             <motion.div
-                                key={i}
+                                key={k}
                                 initial={{ opacity: 0, y: 30 }}
                                 animate={inView ? { opacity: 1, y: 0 } : {}}
                                 transition={{ duration: 0.6, delay: i * 0.1 }}
                                 className="rounded-2xl p-6 text-center transition-all hover:-translate-y-1 hover:shadow-lg"
-                                style={{ background: '#FFFFFF', border: `1px solid ${e.color}25` }}
+                                style={{ background: '#FFFFFF', border: `1px solid ${s.colore}40` }}
                             >
-                                <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 relative"
-                                    style={{ background: `${e.color}15` }}>
-                                    <Icon className="w-7 h-7" style={{ color: e.color }} />
+                                <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 relative" style={{ background: `${s.colore}15` }}>
+                                    <Icon className="w-7 h-7" style={{ color: s.colore }} />
                                     <motion.div
                                         animate={{ scale: [1, 1.4, 1], opacity: [0.5, 0, 0.5] }}
                                         transition={{ duration: 2, repeat: Infinity, delay: i * 0.5 }}
                                         className="absolute inset-0 rounded-full"
-                                        style={{ border: `2px solid ${e.color}` }}
+                                        style={{ border: `2px solid ${s.colore}` }}
                                     />
                                 </div>
-                                <div className="text-[10px] uppercase tracking-[0.2em] mb-1" style={{ fontFamily: fontMono, color: e.color, fontWeight: 600 }}>
-                                    {e.label}
-                                </div>
-                                <h3 className="text-xl font-bold mb-3"
-                                    style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                                    {e.titolo}
+                                <h3 className="text-xl font-bold mb-3" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
+                                    {s.etichetta}
                                 </h3>
                                 <p className="text-sm leading-relaxed" style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
-                                    {e.desc}
+                                    {s.spiegazione}
                                 </p>
                             </motion.div>
                         );
                     })}
                 </div>
+
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={inView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.6, delay: 0.5 }}
+                    className="rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center gap-5"
+                    style={{ background: '#FFFFFF', border: '1.5px dashed rgba(26, 45, 82, 0.2)' }}
+                >
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(26, 45, 82, 0.06)' }}>
+                        <Search className="w-7 h-7" style={{ color: '#6B6B5E' }} />
+                    </div>
+                    <div>
+                        <div className="text-[10px] uppercase tracking-[0.2em] mb-1" style={{ fontFamily: fontMono, color: '#6B6B5E' }}>
+                            {t('verifica.esito.oppure')}
+                        </div>
+                        <h3 className="text-xl font-bold mb-1" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
+                            <Ricco>{`«${t('verifica.nessunaInformazione')}»`}</Ricco>
+                        </h3>
+                        <p className="text-sm leading-relaxed" style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
+                            <Ricco>{t('verifica.esito.oppureTesto')}</Ricco>
+                        </p>
+                    </div>
+                </motion.div>
             </div>
         </section>
     );
 };
 
-// ─── COME FUNZIONA — 4 step ──────────────────────────────────────────────────
+// ─── COME FUNZIONA ────────────────────────────────────────────────────────────
 const ComeFunziona = () => {
+    const t = useT();
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: '-100px' });
 
     const steps = [
-        { num: '01', titolo: 'Acquista la verifica', desc: 'Pagamento singolo via Stripe. Niente abbonamenti, niente vincoli.', icon: CreditCard },
-        { num: '02', titolo: 'Inserisci i dati', desc: 'Nome, cognome, codice fiscale della persona da verificare.', icon: Users },
-        { num: '03', titolo: 'Carica i tuoi documenti', desc: 'Documento d\'identità tuo per la verifica GDPR.', icon: FileText },
-        { num: '04', titolo: 'Ricevi l\'esito via mail', desc: 'Entro 48 ore ricevi un PDF firmato con score e storico.', icon: Mail },
+        { icon: UserCheck, titolo: t('verifica.comeFunziona.passo1.titolo'), desc: t('verifica.comeFunziona.passo1.testo') },
+        { icon: Search, titolo: t('verifica.comeFunziona.passo2.titolo'), desc: t('verifica.comeFunziona.passo2.testo', { prezzo: PREZZO }) },
+        { icon: Mail, titolo: t('verifica.comeFunziona.passo3.titolo', { ore: ORE }), desc: t('verifica.comeFunziona.passo3.testo') },
     ];
 
     return (
@@ -364,33 +415,13 @@ const ComeFunziona = () => {
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
 
                 <div className="mb-16">
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={inView ? { opacity: 1 } : {}}
-                        transition={{ duration: 0.6 }}
-                        className="text-xs uppercase tracking-[0.25em] mb-6"
-                        style={{ fontFamily: fontMono, color: '#C97B5C' }}
-                    >
-                        Come funziona
-                    </motion.div>
-                    <motion.h2
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={inView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.8 }}
-                        className="leading-[1.05] tracking-tight max-w-4xl"
-                        style={{
-                            fontFamily: fontHeader,
-                            fontVariationSettings: fontSettingsSoft,
-                            color: '#1A2D52',
-                            fontSize: 'clamp(2rem, 5vw, 3.75rem)',
-                            fontWeight: 400,
-                        }}
-                    >
-                        Da acquisto ad esito, in <span className="italic" style={{ color: '#C97B5C' }}>4 step.</span>
-                    </motion.h2>
+                    <Occhiello inView={inView}>{t('verifica.comeFunziona.occhiello')}</Occhiello>
+                    <Titolo inView={inView} className="max-w-4xl">
+                        <Ricco evidenza={inCorsivo}>{t('verifica.comeFunziona.titolo')}</Ricco>
+                    </Titolo>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
+                <div className="grid md:grid-cols-3 gap-4 lg:gap-6">
                     {steps.map((s, i) => {
                         const Icon = s.icon;
                         return (
@@ -401,32 +432,26 @@ const ComeFunziona = () => {
                                 transition={{ duration: 0.6, delay: i * 0.08 }}
                                 className="relative"
                             >
-                                <div className="p-5 rounded-2xl h-full transition-all hover:shadow-lg hover:-translate-y-1"
+                                <div className="p-6 rounded-2xl h-full transition-all hover:shadow-lg hover:-translate-y-1"
                                     style={{ background: '#FFFFFF', border: '1px solid rgba(26, 45, 82, 0.1)' }}>
-
-                                    <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center justify-between mb-4">
                                         <div className="text-2xl leading-none italic"
                                             style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#C97B5C', fontWeight: 400 }}>
-                                            {s.num}
+                                            {String(i + 1).padStart(2, '0')}
                                         </div>
-                                        <div className="w-9 h-9 rounded-lg flex items-center justify-center"
-                                            style={{ background: '#C97B5C15' }}>
+                                        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: '#C97B5C15' }}>
                                             <Icon className="w-4 h-4" style={{ color: '#C97B5C' }} />
                                         </div>
                                     </div>
-
-                                    <h3 className="text-base font-semibold mb-2 leading-tight"
-                                        style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                                        {s.titolo}
+                                    <h3 className="text-lg font-semibold mb-2 leading-tight" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
+                                        <Ricco>{s.titolo}</Ricco>
                                     </h3>
-
-                                    <p className="text-xs leading-relaxed"
-                                        style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
-                                        {s.desc}
+                                    <p className="text-sm leading-relaxed" style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
+                                        <Ricco>{s.desc}</Ricco>
                                     </p>
                                 </div>
 
-                                {i < 3 && (
+                                {i < steps.length - 1 && (
                                     <div className="hidden md:flex absolute top-1/2 -right-3 -translate-y-1/2 z-10 w-6 h-6 rounded-full items-center justify-center"
                                         style={{ background: '#FFFFFF', border: '1px solid rgba(26, 45, 82, 0.1)' }}>
                                         <ArrowRight className="w-3 h-3" style={{ color: '#C97B5C' }} />
@@ -441,44 +466,23 @@ const ComeFunziona = () => {
     );
 };
 
-// ─── COSA CONTIENE L'ESITO — mockup PDF grande ────────────────────────────────
-const CosaContieneEsito = () => {
+// ─── COSA VEDI, E I 47 € ─────────────────────────────────────────────────────
+const VediEScali = () => {
+    const t = useT();
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: '-100px' });
+    const nessunaInformazione = minuscola(t('verifica.nessunaInformazione'));
 
     return (
-        <section id="esito" ref={ref} className="py-32" style={{ background: '#0F1B33' }}>
+        <section ref={ref} className="py-32" style={{ background: '#0F1B33' }}>
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-
                 <div className="grid lg:grid-cols-12 gap-12 items-center">
 
-                    <div className="lg:col-span-5">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={inView ? { opacity: 1 } : {}}
-                            transition={{ duration: 0.6 }}
-                            className="text-xs uppercase tracking-[0.25em] mb-6"
-                            style={{ fontFamily: fontMono, color: '#E8B59C' }}
-                        >
-                            Il deliverable
-                        </motion.div>
-
-                        <motion.h2
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={inView ? { opacity: 1, y: 0 } : {}}
-                            transition={{ duration: 0.8 }}
-                            className="leading-[1.05] tracking-tight mb-6"
-                            style={{
-                                fontFamily: fontHeader,
-                                fontVariationSettings: fontSettingsSoft,
-                                color: '#FFFFFF',
-                                fontSize: 'clamp(2rem, 4.5vw, 3.5rem)',
-                                fontWeight: 400,
-                            }}
-                        >
-                            Un PDF chiaro. <span className="italic" style={{ color: '#E8B59C' }}>Senza interpretazioni.</span>
-                        </motion.h2>
-
+                    <div className="lg:col-span-6">
+                        <Occhiello inView={inView} colore="#E8B59C">{t('verifica.cosaVedi.occhiello')}</Occhiello>
+                        <Titolo inView={inView} colore="#FFFFFF" size="clamp(2rem, 4.5vw, 3.5rem)">
+                            <Ricco evidenza={inCorsivoChiaro}>{t('verifica.cosaVedi.titolo')}</Ricco>
+                        </Titolo>
                         <motion.p
                             initial={{ opacity: 0 }}
                             animate={inView ? { opacity: 1 } : {}}
@@ -486,19 +490,15 @@ const CosaContieneEsito = () => {
                             className="text-lg leading-relaxed mb-8"
                             style={{ fontFamily: fontBody, color: 'rgba(255, 255, 255, 0.7)' }}
                         >
-                            L'esito arriva via mail con un PDF di 3 pagine, firmato digitalmente. Lo puoi conservare, stampare, o presentarlo come parte del tuo iter di valutazione.
+                            <Ricco>{t('verifica.cosaVedi.intro')}</Ricco>
                         </motion.p>
-
                         <ul className="space-y-3">
                             {[
-                                'Dati anagrafici della persona verificata',
-                                'Score complessivo (verde / giallo / rosso / nessun dato)',
-                                'Storico pagamenti ultimi 12 mesi mese per mese',
-                                'Eventuali contestazioni aperte o chiuse',
-                                'Firma digitale CRIA per uso documentale',
-                            ].map((c, j) => (
-                                <li key={j} className="flex items-start gap-3 text-sm"
-                                    style={{ fontFamily: fontBody, color: 'rgba(255, 255, 255, 0.85)' }}>
+                                t('verifica.cosaVedi.punto1'),
+                                t('verifica.cosaVedi.punto2', { nessunaInformazione }),
+                                t('verifica.cosaVedi.punto3'),
+                            ].map((c, i) => (
+                                <li key={i} className="flex items-start gap-3 text-sm" style={{ fontFamily: fontBody, color: 'rgba(255, 255, 255, 0.85)' }}>
                                     <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#E8B59C' }} />
                                     {c}
                                 </li>
@@ -510,9 +510,41 @@ const CosaContieneEsito = () => {
                         initial={{ opacity: 0, x: 30 }}
                         animate={inView ? { opacity: 1, x: 0 } : {}}
                         transition={{ duration: 1, delay: 0.4 }}
-                        className="lg:col-span-7"
+                        className="lg:col-span-6"
                     >
-                        <MockupPdfEsito />
+                        <div className="rounded-2xl overflow-hidden" style={{ background: '#FFFFFF', boxShadow: '0 30px 80px -20px rgba(0, 0, 0, 0.5)' }}>
+                            <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(26, 45, 82, 0.08)', background: '#F5F5F0' }}>
+                                <Receipt className="w-4 h-4" style={{ color: '#1A2D52' }} />
+                                <div className="text-sm font-semibold" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
+                                    <Ricco>{t('verifica.cosaVedi.scalabile.titolo', { prezzo: PREZZO })}</Ricco>
+                                </div>
+                            </div>
+                            <div className="p-6">
+                                <p className="text-sm leading-relaxed mb-5" style={{ fontFamily: fontBody, color: '#1A1A1A' }}>
+                                    <Ricco>{t('verifica.cosaVedi.scalabile.testo', { giorni: GIORNI_SCALA })}</Ricco>
+                                </p>
+                                <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
+                                    {t('verifica.cosaVedi.scalabile.listino')}
+                                </div>
+                                <div>
+                                    {PRODOTTI_PROPRIETARIO.map((codice, i) => (
+                                        <div key={codice} className="flex items-center justify-between gap-4 py-2.5"
+                                            style={{ borderTop: i > 0 ? '1px solid rgba(26, 45, 82, 0.08)' : 'none' }}>
+                                            <span className="text-sm font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>
+                                                {nomeProdotto(codice)}
+                                            </span>
+                                            <span className="text-xs text-right" style={{ fontFamily: fontMono, color: '#6B6B5E' }}>
+                                                {prezzoProdotto(codice)}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <Link to="/per-proprietari" className="group inline-flex items-center gap-2 mt-5 text-sm font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>
+                                    {t('verifica.cosaVedi.scalabile.link')}
+                                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+                                </Link>
+                            </div>
+                        </div>
                     </motion.div>
                 </div>
             </div>
@@ -520,212 +552,41 @@ const CosaContieneEsito = () => {
     );
 };
 
-// ─── MOCKUP PDF DETTAGLIATO ──────────────────────────────────────────────────
-const MockupPdfEsito = () => {
-    return (
-        <motion.div
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-            className="rounded-2xl overflow-hidden"
-            style={{
-                background: '#FFFFFF',
-                boxShadow: '0 30px 80px -20px rgba(0, 0, 0, 0.5)',
-            }}
-        >
-            {/* Top bar tipo PDF reader */}
-            <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: 'rgba(26, 45, 82, 0.08)', background: '#F5F5F0' }}>
-                <FileText className="w-4 h-4" style={{ color: '#1A2D52' }} />
-                <div className="text-xs font-semibold flex-1" style={{ fontFamily: fontMono, color: '#1A2D52' }}>
-                    esito-VR-2026-0042.pdf
-                </div>
-                <div className="text-[10px]" style={{ fontFamily: fontMono, color: '#6B6B5E' }}>
-                    1 / 3
-                </div>
-            </div>
-
-            <div className="p-7 space-y-5">
-
-                {/* Header CRIA */}
-                <div className="flex items-center justify-between pb-4" style={{ borderBottom: '2px solid #1A2D52' }}>
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: '#1A2D52' }}>
-                            <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
-                                <path d="M12 3 L4 9 L4 20 L20 20 L20 9 Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
-                                <circle cx="12" cy="11" r="1.3" fill="#22C55E" />
-                                <circle cx="12" cy="14.5" r="1.3" fill="#F59E0B" />
-                                <circle cx="12" cy="18" r="1.3" fill="#EF4444" />
-                            </svg>
-                        </div>
-                        <div>
-                            <div className="text-base font-bold" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                                CRIA
-                            </div>
-                            <div className="text-[8px] uppercase tracking-[0.18em]" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                                Centrale Rischi Italia Affitti
-                            </div>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-[9px] uppercase tracking-wider" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                            Esito verifica
-                        </div>
-                        <div className="text-xs font-bold" style={{ fontFamily: fontMono, color: '#1A2D52' }}>
-                            #VR-2026-0042
-                        </div>
-                    </div>
-                </div>
-
-                {/* Anagrafica */}
-                <div>
-                    <div className="text-[10px] uppercase tracking-wider mb-3" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                        Persona verificata
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                        <div>
-                            <div className="text-[9px] uppercase" style={{ color: '#6B6B5E', fontFamily: fontMono }}>Nome e cognome</div>
-                            <div className="text-sm font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>Sofia Martini</div>
-                        </div>
-                        <div>
-                            <div className="text-[9px] uppercase" style={{ color: '#6B6B5E', fontFamily: fontMono }}>Codice fiscale</div>
-                            <div className="text-sm font-semibold" style={{ fontFamily: fontMono, color: '#1A2D52' }}>MRTSFI88L42F205Z</div>
-                        </div>
-                        <div>
-                            <div className="text-[9px] uppercase" style={{ color: '#6B6B5E', fontFamily: fontMono }}>Data verifica</div>
-                            <div className="text-sm font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>04/05/2026</div>
-                        </div>
-                        <div>
-                            <div className="text-[9px] uppercase" style={{ color: '#6B6B5E', fontFamily: fontMono }}>Richiedente</div>
-                            <div className="text-sm font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>Marco B.</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Esito principale */}
-                <div className="p-5 rounded-xl text-center"
-                    style={{ background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-3" style={{ background: '#22C55E' }}>
-                        <CheckCircle2 className="w-8 h-8" style={{ color: '#FFFFFF' }} />
-                    </div>
-                    <div className="text-xl font-bold mb-1" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#166534' }}>
-                        Inquilino affidabile
-                    </div>
-                    <div className="text-sm font-semibold" style={{ color: '#15803D', fontFamily: fontBody }}>
-                        Score 94/100
-                    </div>
-                </div>
-
-                {/* Storico pagamenti */}
-                <div>
-                    <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                        Storico pagamenti · ultimi 12 mesi
-                    </div>
-                    <div className="flex gap-1 mb-2">
-                        {Array.from({ length: 12 }).map((_, i) => (
-                            <div key={i} className="flex-1 h-7 rounded"
-                                style={{ background: i === 8 ? '#F59E0B' : '#22C55E' }} />
-                        ))}
-                    </div>
-                    <div className="flex justify-between text-[10px]" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                        <span>Mag '25</span>
-                        <span>Apr '26</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 mt-3 text-[10px]">
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full" style={{ background: '#22C55E' }} />
-                            <span style={{ fontFamily: fontBody, color: '#1A1A1A' }}>11 puntuali</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full" style={{ background: '#F59E0B' }} />
-                            <span style={{ fontFamily: fontBody, color: '#1A1A1A' }}>1 in ritardo</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />
-                            <span style={{ fontFamily: fontBody, color: '#1A1A1A' }}>0 mancati</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Note */}
-                <div className="p-3 rounded-lg" style={{ background: '#F5F5F0' }}>
-                    <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                        Note
-                    </div>
-                    <p className="text-xs leading-relaxed" style={{ fontFamily: fontBody, color: '#1A1A1A' }}>
-                        Nessuna contestazione aperta. Storico stabile. Comportamento di pagamento conforme alla media degli inquilini "verdi" della piattaforma.
-                    </p>
-                </div>
-
-                {/* Footer firma */}
-                <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid rgba(26, 45, 82, 0.08)' }}>
-                    <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />
-                        <div className="text-[10px]" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                            Firmato digitalmente · CRIA Verifica
-                        </div>
-                    </div>
-                    <div className="text-[10px]" style={{ color: '#6B6B5E', fontFamily: fontMono }}>
-                        Pag. 1 / 3
-                    </div>
-                </div>
-            </div>
-        </motion.div>
-    );
-};
-
-// ─── PER CHI È ────────────────────────────────────────────────────────────────
-const PerChiE = () => {
+// ─── ALTRE STRADE ─────────────────────────────────────────────────────────────
+const AltreStrade = () => {
+    const t = useT();
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: '-100px' });
 
     const casi = [
         {
-            icon: Home,
-            titolo: 'Privato che sta per affittare',
-            desc: 'Hai un candidato per il tuo immobile. Vuoi sapere se in passato ha pagato regolarmente prima di firmare un contratto pluriennale.',
+            icon: ShieldCheck,
+            titolo: t('verifica.altriCasi.caso1.titolo'),
+            desc: t('verifica.altriCasi.caso1.testo'),
+        },
+        {
+            icon: FileText,
+            titolo: t('verifica.altriCasi.caso2.titolo'),
+            desc: t('verifica.altriCasi.caso2.testo', { prezzo: fmtEuro(PRODOTTI.P7.prezzo) }),
+            link: { to: '/per-inquilini', label: t('verifica.altriCasi.caso2.link') },
         },
         {
             icon: Building2,
-            titolo: 'Agenzia in fase di screening',
-            desc: 'Stai facendo selezione tra più candidati. Una verifica oggettiva ti aiuta a decidere senza basarti solo su buste paga e referenze.',
-        },
-        {
-            icon: Users,
-            titolo: 'Subentro o subaffitto',
-            desc: 'Stai cedendo o subentrando in un contratto. Vuoi essere sicuro che chi ti precede o ti subentra abbia uno storico pulito.',
+            titolo: t('verifica.altriCasi.caso3.titolo'),
+            desc: t('verifica.altriCasi.caso3.testo', { nomeProdotto: PRODOTTI.P6.nome, prezzo: prezzoProdotto('P6').toLowerCase(), sintesi: PRODOTTI.P6.sintesi }),
+            link: { to: '/supporto', label: t('verifica.altriCasi.caso3.link') },
         },
     ];
 
     return (
         <section ref={ref} className="py-32" style={{ background: '#FFFFFF' }}>
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+                <Occhiello inView={inView}>{t('verifica.altriCasi.occhiello')}</Occhiello>
+                <Titolo inView={inView} className="max-w-4xl mb-16">
+                    <Ricco evidenza={inCorsivo}>{t('verifica.altriCasi.titolo')}</Ricco>
+                </Titolo>
 
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={inView ? { opacity: 1 } : {}}
-                    transition={{ duration: 0.6 }}
-                    className="text-xs uppercase tracking-[0.25em] mb-6"
-                    style={{ fontFamily: fontMono, color: '#C97B5C' }}
-                >
-                    Per chi è pensato
-                </motion.div>
-
-                <motion.h2
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={inView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.8 }}
-                    className="leading-[1.05] tracking-tight max-w-4xl mb-16"
-                    style={{
-                        fontFamily: fontHeader,
-                        fontVariationSettings: fontSettingsSoft,
-                        color: '#1A2D52',
-                        fontSize: 'clamp(2rem, 5vw, 3.75rem)',
-                        fontWeight: 400,
-                    }}
-                >
-                    Quando una <span className="italic" style={{ color: '#C97B5C' }}>verifica fa la differenza.</span>
-                </motion.h2>
-
-                <div className="grid md:grid-cols-3 gap-6 mb-12">
+                <div className="grid md:grid-cols-3 gap-6">
                     {casi.map((c, i) => {
                         const Icon = c.icon;
                         return (
@@ -734,123 +595,28 @@ const PerChiE = () => {
                                 initial={{ opacity: 0, y: 30 }}
                                 animate={inView ? { opacity: 1, y: 0 } : {}}
                                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                                className="rounded-2xl p-7 transition-all hover:-translate-y-1 hover:shadow-lg"
+                                className="rounded-2xl p-7 flex flex-col transition-all hover:-translate-y-1 hover:shadow-lg"
                                 style={{ background: '#F5F5F0', border: '1px solid rgba(26, 45, 82, 0.06)' }}
                             >
-                                <div className="w-11 h-11 rounded-lg flex items-center justify-center mb-5"
-                                    style={{ background: '#C97B5C15' }}>
+                                <div className="w-11 h-11 rounded-lg flex items-center justify-center mb-5" style={{ background: '#C97B5C15' }}>
                                     <Icon className="w-5 h-5" style={{ color: '#C97B5C' }} />
                                 </div>
-                                <h3 className="text-lg font-semibold mb-3"
-                                    style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                                    {c.titolo}
+                                <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
+                                    <Ricco>{c.titolo}</Ricco>
                                 </h3>
-                                <p className="text-sm leading-relaxed" style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
-                                    {c.desc}
+                                <p className="text-sm leading-relaxed flex-1" style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
+                                    <Ricco>{c.desc}</Ricco>
                                 </p>
+                                {c.link && (
+                                    <Link to={c.link.to} className="group inline-flex items-center gap-2 mt-5 text-sm font-semibold" style={{ fontFamily: fontBody, color: '#1A2D52' }}>
+                                        {c.link.label}
+                                        <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+                                    </Link>
+                                )}
                             </motion.div>
                         );
                     })}
                 </div>
-
-                {/* Cross-sell: se invece vuoi gestire continuamente */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={inView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.8, delay: 0.4 }}
-                    className="rounded-2xl p-6 lg:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
-                    style={{ background: '#1A2D52', color: '#FFFFFF' }}
-                >
-                    <div className="flex items-start gap-4 flex-1">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                            style={{ background: 'rgba(232, 181, 156, 0.15)' }}>
-                            <Building2 className="w-5 h-5" style={{ color: '#E8B59C' }} />
-                        </div>
-                        <div>
-                            <h4 className="text-lg font-semibold mb-1"
-                                style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#FFFFFF' }}>
-                                Vuoi <span className="italic" style={{ color: '#E8B59C' }}>gestire continuamente</span> i tuoi affitti?
-                            </h4>
-                            <p className="text-sm" style={{ fontFamily: fontBody, color: 'rgba(255, 255, 255, 0.7)' }}>
-                                Se hai immobili attivi e vuoi tracciamento mensile, contestazioni e dashboard, ti serve CRIA Gestione o Completo.
-                            </p>
-                        </div>
-                    </div>
-                    <Link to="/per-locatori">
-                        <button className="group flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold transition-all hover:scale-[1.02] flex-shrink-0"
-                            style={{ background: '#FFFFFF', color: '#1A2D52', fontFamily: fontBody }}>
-                            Scopri i prodotti per locatori
-                            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
-                        </button>
-                    </Link>
-                </motion.div>
-            </div>
-        </section>
-    );
-};
-
-// ─── PRIVACY GDPR ─────────────────────────────────────────────────────────────
-const PrivacyGdpr = () => {
-    const ref = useRef(null);
-    const inView = useInView(ref, { once: true, margin: '-100px' });
-
-    return (
-        <section ref={ref} className="py-24" style={{ background: '#F5F5F0' }}>
-            <div className="max-w-[1100px] mx-auto px-6 lg:px-12">
-
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={inView ? { opacity: 1 } : {}}
-                    transition={{ duration: 0.6 }}
-                    className="text-xs uppercase tracking-[0.25em] mb-6"
-                    style={{ fontFamily: fontMono, color: '#C97B5C' }}
-                >
-                    Privacy e GDPR
-                </motion.div>
-
-                <motion.h2
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={inView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.8 }}
-                    className="leading-[1.1] tracking-tight mb-12 max-w-3xl"
-                    style={{
-                        fontFamily: fontHeader,
-                        fontVariationSettings: fontSettingsSoft,
-                        color: '#1A2D52',
-                        fontSize: 'clamp(1.75rem, 4vw, 2.75rem)',
-                        fontWeight: 400,
-                    }}
-                >
-                    Una verifica <span className="italic" style={{ color: '#C97B5C' }}>fatta come si deve.</span>
-                </motion.h2>
-
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={inView ? { opacity: 1 } : {}}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    className="grid md:grid-cols-2 gap-4"
-                >
-                    {[
-                        { titolo: 'Dati oggettivi e verificabili', desc: 'Verifichiamo solo storico pagamenti e regolarità. Niente opinioni soggettive, niente discriminazioni, niente liste nere.' },
-                        { titolo: 'GDPR garantito', desc: 'Trattiamo i dati nel pieno rispetto del Regolamento UE 2016/679. Ti chiediamo i documenti per garantire il legittimo interesse della verifica.' },
-                        { titolo: 'L\'inquilino può saperlo', desc: 'La persona verificata ha diritto di sapere che è stata verificata e di accedere all\'esito su richiesta. Trasparenza totale.' },
-                        { titolo: 'Conservazione limitata', desc: 'Conserviamo l\'esito della verifica per 12 mesi. Dopo viene cancellato. Puoi richiederne la cancellazione anticipata in qualsiasi momento.' },
-                    ].map((p, i) => (
-                        <div key={i} className="rounded-2xl p-6"
-                            style={{ background: '#FFFFFF', border: '1px solid rgba(26, 45, 82, 0.06)' }}>
-                            <div className="flex items-center gap-2 mb-2">
-                                <Lock className="w-4 h-4" style={{ color: '#C97B5C' }} />
-                                <h4 className="text-base font-semibold"
-                                    style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                                    {p.titolo}
-                                </h4>
-                            </div>
-                            <p className="text-sm leading-relaxed" style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
-                                {p.desc}
-                            </p>
-                        </div>
-                    ))}
-                </motion.div>
             </div>
         </section>
     );
@@ -858,67 +624,29 @@ const PrivacyGdpr = () => {
 
 // ─── FAQ ──────────────────────────────────────────────────────────────────────
 const FAQ = () => {
+    const t = useT();
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: '-100px' });
     const [open, setOpen] = useState(0);
 
-    const faqs = [
-        {
-            q: 'Quanto costa una verifica?',
-            a: 'Il prezzo è chiaro al momento del checkout. Pagamento singolo via Stripe, una sola fattura, niente abbonamenti. Sconti volume disponibili per chi acquista pacchetti multipli (utile per agenzie).',
-        },
-        {
-            q: 'Cosa serve per fare una verifica?',
-            a: 'Servono i dati anagrafici della persona da verificare (nome, cognome, codice fiscale) e un tuo documento d\'identità per attestare il legittimo interesse della richiesta. Tutto si fa online in 5 minuti.',
-        },
-        {
-            q: 'Cosa succede se la persona non è nel database?',
-            a: 'Riceverai un esito "Nessun dato disponibile". Significa che la persona non ha precedenti registrati su CRIA. Non è una bocciatura: semplicemente non ci sono informazioni storiche da segnalare.',
-        },
-        {
-            q: 'L\'inquilino verrà a saperlo?',
-            a: 'La persona verificata ha diritto di sapere, su richiesta, che è stata verificata e di accedere all\'esito. È previsto dal GDPR. Tu come richiedente non sei obbligato a comunicarlo proattivamente, ma se la persona te lo chiede sì.',
-        },
-        {
-            q: 'Posso usarla per uno scopo diverso dall\'affitto?',
-            a: 'No. CRIA Verifica è autorizzato solo per la valutazione di un potenziale rapporto di locazione. Usarlo per altri scopi (assunzioni, prestiti, valutazioni commerciali) viola i termini di servizio e la normativa GDPR.',
-        },
-    ];
+    // Le domande di questa pagina le scrive l'admin (FAQ): sono quelle che hanno
+    // «verifica» fra le pagine su cui compaiono.
+    const { faq } = useFaqPubbliche();
+    const faqs = faq.filter(f => f.pagine?.includes('verifica')).map(f => ({ q: f.domanda, a: f.risposta }));
+    if (!faqs.length) return null;
 
     return (
-        <section ref={ref} className="py-32" style={{ background: '#FFFFFF' }}>
+        <section ref={ref} className="py-32" style={{ background: '#F5F5F0' }}>
             <div className="max-w-[1000px] mx-auto px-6 lg:px-12">
-
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={inView ? { opacity: 1 } : {}}
-                    transition={{ duration: 0.6 }}
-                    className="text-xs uppercase tracking-[0.25em] mb-6"
-                    style={{ fontFamily: fontMono, color: '#C97B5C' }}
-                >
-                    Domande frequenti
-                </motion.div>
-
-                <motion.h2
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={inView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.8 }}
-                    className="leading-[1.05] tracking-tight mb-12"
-                    style={{
-                        fontFamily: fontHeader,
-                        fontVariationSettings: fontSettingsSoft,
-                        color: '#1A2D52',
-                        fontSize: 'clamp(2rem, 5vw, 3.5rem)',
-                        fontWeight: 400,
-                    }}
-                >
-                    Le risposte alle <span className="italic" style={{ color: '#C97B5C' }}>domande più comuni.</span>
-                </motion.h2>
+                <Occhiello inView={inView}>{t('verifica.faq.occhiello')}</Occhiello>
+                <Titolo inView={inView} size="clamp(2rem, 5vw, 3.5rem)" className="mb-12">
+                    <Ricco evidenza={inCorsivo}>{t('verifica.faq.titolo')}</Ricco>
+                </Titolo>
 
                 <div className="space-y-3">
                     {faqs.map((f, i) => (
                         <motion.div
-                            key={i}
+                            key={f.q}
                             initial={{ opacity: 0, y: 20 }}
                             animate={inView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 0.6, delay: i * 0.08 }}
@@ -959,6 +687,7 @@ const FAQ = () => {
 
 // ─── CTA FINALE ───────────────────────────────────────────────────────────────
 const CTAFinale = () => {
+    const t = useT();
     const ref = useRef(null);
     const inView = useInView(ref, { once: true });
 
@@ -971,31 +700,10 @@ const CTAFinale = () => {
 
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12 relative">
                 <div className="max-w-4xl">
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={inView ? { opacity: 1 } : {}}
-                        transition={{ duration: 0.6 }}
-                        className="text-xs uppercase tracking-[0.25em] mb-6"
-                        style={{ fontFamily: fontMono, color: '#E8B59C' }}
-                    >
-                        Pronto a firmare?
-                    </motion.div>
-
-                    <motion.h2
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={inView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.8 }}
-                        className="leading-[1.05] tracking-tight mb-10"
-                        style={{
-                            fontFamily: fontHeader,
-                            fontVariationSettings: fontSettingsSoft,
-                            color: '#FFFFFF',
-                            fontSize: 'clamp(2.5rem, 6vw, 5rem)',
-                            fontWeight: 400,
-                        }}
-                    >
-                        Verifica oggi. <span className="italic" style={{ color: '#E8B59C' }}>Firma con tranquillità.</span>
-                    </motion.h2>
+                    <Occhiello inView={inView} colore="#E8B59C">{t('verifica.chiusura.occhiello')}</Occhiello>
+                    <Titolo inView={inView} colore="#FFFFFF" size="clamp(2.5rem, 6vw, 5rem)" className="mb-10">
+                        <Ricco evidenza={inCorsivoChiaro}>{t('verifica.chiusura.titolo', { ore: ORE })}</Ricco>
+                    </Titolo>
 
                     <motion.p
                         initial={{ opacity: 0 }}
@@ -1004,37 +712,38 @@ const CTAFinale = () => {
                         className="text-xl mb-12 max-w-2xl leading-relaxed"
                         style={{ fontFamily: fontBody, color: 'rgba(255, 255, 255, 0.7)' }}
                     >
-                        Prima di affidare casa tua per anni, dedica 5 minuti a una verifica seria. L'esito ti arriva entro 48 ore.
+                        <Ricco>{t('verifica.chiusura.testo', { prezzo: PREZZO, giorni: GIORNI_SCALA })}</Ricco>
                     </motion.p>
 
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={inView ? { opacity: 1, y: 0 } : {}}
                         transition={{ duration: 0.8, delay: 0.3 }}
-                        className="flex flex-wrap gap-4"
+                        className="flex flex-wrap items-center gap-4"
                     >
-                        <Link to="/inizia">
+                        <Link to="/verifica/nuova">
                             <button className="group flex items-center gap-3 px-8 py-5 rounded-full text-base font-semibold transition-all hover:scale-[1.02]"
                                 style={{ background: '#FFFFFF', color: '#1A2D52', fontFamily: fontBody }}>
-                                Verifica un inquilino
+                                {t('verifica.chiusura.pulsanteRichiedi')}
                                 <span className="w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-1"
                                     style={{ background: '#1A2D52', color: '#FFFFFF' }}>
                                     <ArrowRight className="w-3.5 h-3.5" />
                                 </span>
                             </button>
                         </Link>
-                        <Link to="/supporto">
+                        <Link to="/signup">
                             <button className="group flex items-center gap-3 px-8 py-5 rounded-full text-base font-semibold transition-all hover:scale-[1.02]"
-                                style={{
-                                    background: 'transparent',
-                                    color: '#FFFFFF',
-                                    fontFamily: fontBody,
-                                    border: '1.5px solid rgba(255, 255, 255, 0.3)',
-                                }}>
-                                Hai dubbi? Scrivici
+                                style={{ background: 'transparent', color: '#FFFFFF', fontFamily: fontBody, border: '1.5px solid rgba(255, 255, 255, 0.3)' }}>
+                                {t('verifica.chiusura.pulsanteRegistrati')}
                                 <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                             </button>
                         </Link>
+                        <p className="text-sm" style={{ fontFamily: fontBody, color: 'rgba(255, 255, 255, 0.55)' }}>
+                            {t('verifica.chiusura.dubbi')}{' '}
+                            <Link to="/supporto" className="font-semibold underline" style={{ color: '#E8B59C' }}>
+                                {t('verifica.chiusura.scrivici')}
+                            </Link>
+                        </p>
                     </motion.div>
                 </div>
             </div>
@@ -1044,11 +753,12 @@ const CTAFinale = () => {
 
 // ─── PAGINA PRINCIPALE ────────────────────────────────────────────────────────
 const VerificaInquilinoPage = () => {
+    const t = useT();
     return (
         <>
             <Helmet>
-                <title>Verifica un inquilino — CRIA</title>
-                <meta name="description" content="Verifica l'affidabilità di un inquilino prima di firmare. Score storico, regolarità pagamenti, esito documentato in 48 ore. Una sola domanda, una sola risposta." />
+                <title>{semplice(t('verifica.meta.titolo', { nomeProdotto: P3.nome }))}</title>
+                <meta name="description" content={semplice(t('verifica.meta.descrizione', { ore: ORE, prezzo: prezzoProdotto('P3'), giorni: GIORNI_SCALA }))} />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
                 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300,50;0,9..144,400,50;0,9..144,500,50;0,9..144,600,50;0,9..144,700,50;1,9..144,300,50;1,9..144,400,50&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -1057,11 +767,10 @@ const VerificaInquilinoPage = () => {
             <div style={{ background: '#FFFFFF', fontFamily: fontBody }}>
                 <VetrinaHeader activePage="prodotti" />
                 <Hero />
-                <EsitiPossibili />
+                <CosaRestituisce />
                 <ComeFunziona />
-                <CosaContieneEsito />
-                <PerChiE />
-                <PrivacyGdpr />
+                <VediEScali />
+                <AltreStrade />
                 <FAQ />
                 <CTAFinale />
                 <VetrinaFooter />

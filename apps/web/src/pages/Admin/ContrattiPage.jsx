@@ -1,295 +1,376 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Search, X, ChevronRight, ChevronDown, FileText, Home, Receipt } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, ArrowUpRight, ChevronUp, ChevronDown, Home, FileText, AlertTriangle, Clock, Euro } from 'lucide-react';
-import MappaImmobili from '@/components/MappaImmobili.jsx';
-
-// ─── Modello dati ──────────────────────────────────────────────────────────────
-// Un IMMOBILE è registrato sulla piattaforma. Ha:
-//   - prodotto: P1 | P2 | P3       (P3 = solo verifica, niente locazione gestita)
-//   - prodotto_stato: 'attivo' | 'in_scadenza' | 'scaduto' | 'cancellato'
-//   - contratto_stato: 'attivo' | 'in_scadenza' | 'vacante' | 'concluso' | 'sospeso'
-//
-// In tabella mostro entrambi gli stati separatamente per evitare ambiguità.
-const CONTRATTI = [
-    { id: 1, indirizzo: 'Via Roma 42', citta: 'Milano', locatore: 'Marco Bianchi', inquilino: 'Sofia Martini', prodotto: 1, prodottoStato: 'attivo', contrattoStato: 'attivo', scadenza: '2026-12-31', canone: '1.200' },
-    { id: 2, indirizzo: 'Corso Venezia 18', citta: 'Milano', locatore: 'Marco Bianchi', inquilino: 'Luca Romano', prodotto: 2, prodottoStato: 'attivo', contrattoStato: 'attivo', scadenza: '2027-01-31', canone: '950' },
-    { id: 3, indirizzo: 'Via Dante 7', citta: 'Roma', locatore: 'Sara Conti', inquilino: 'Elena Greco', prodotto: 1, prodottoStato: 'attivo', contrattoStato: 'attivo', scadenza: '2027-01-14', canone: '1.450' },
-    { id: 4, indirizzo: 'Piazza Navona 23', citta: 'Roma', locatore: 'Sara Conti', inquilino: 'Marco Esposito', prodotto: 2, prodottoStato: 'attivo', contrattoStato: 'attivo', scadenza: '2027-02-28', canone: '1.100' },
-    { id: 5, indirizzo: 'Via Garibaldi 56', citta: 'Torino', locatore: 'Luca Ferrari', inquilino: 'Chiara Lombardi', prodotto: 1, prodottoStato: 'attivo', contrattoStato: 'in_scadenza', scadenza: '2026-04-15', canone: '850' },
-    { id: 6, indirizzo: 'Corso Re Umberto 5', citta: 'Torino', locatore: 'Luca Ferrari', inquilino: 'Giorgio Esposito', prodotto: 2, prodottoStato: 'attivo', contrattoStato: 'in_scadenza', scadenza: '2026-04-20', canone: '780' },
-    { id: 7, indirizzo: 'Calle Larga 8', citta: 'Venezia', locatore: 'Giulia Neri', inquilino: 'Anna Russo', prodotto: 1, prodottoStato: 'attivo', contrattoStato: 'attivo', scadenza: '2026-11-30', canone: '1.300' },
-    { id: 8, indirizzo: 'Viale Roma 18', citta: 'Rimini', locatore: 'Giulia Neri', inquilino: null, prodotto: 1, prodottoStato: 'attivo', contrattoStato: 'vacante', scadenza: null, canone: '700' },
-    { id: 9, indirizzo: 'Via Carducci 7', citta: 'Trieste', locatore: 'Roberto Fabbri', inquilino: 'Paolo Gallo', prodotto: 2, prodottoStato: 'attivo', contrattoStato: 'attivo', scadenza: '2026-10-31', canone: '900' },
-    { id: 10, indirizzo: 'Corso Palestro 11', citta: 'Brescia', locatore: 'Roberto Fabbri', inquilino: 'Elena Vitali', prodotto: 1, prodottoStato: 'attivo', contrattoStato: 'attivo', scadenza: '2026-09-30', canone: '820' },
-    { id: 11, indirizzo: 'Via Libertà 4', citta: 'Monza', locatore: 'Alessia Moretti', inquilino: 'Fabio Colombo', prodotto: 1, prodottoStato: 'attivo', contrattoStato: 'attivo', scadenza: '2026-08-31', canone: '650' },
-    { id: 12, indirizzo: 'Piazza Garibaldi 1', citta: 'Parma', locatore: 'Alessia Moretti', inquilino: null, prodotto: 1, prodottoStato: 'attivo', contrattoStato: 'vacante', scadenza: null, canone: '600' },
-    { id: 13, indirizzo: 'Riviera Tito Livio 9', citta: 'Padova', locatore: 'Davide Ricci', inquilino: 'Marta Greco', prodotto: 2, prodottoStato: 'attivo', contrattoStato: 'in_scadenza', scadenza: '2026-04-25', canone: '880' },
-    { id: 14, indirizzo: 'Via Indipendenza 22', citta: 'Bologna', locatore: 'Davide Ricci', inquilino: 'Stefano Bruno', prodotto: 1, prodottoStato: 'scaduto', contrattoStato: 'sospeso', scadenza: '2026-07-31', canone: '950' },
-    { id: 15, indirizzo: 'Via Mazzini 3', citta: 'Verona', locatore: 'Paolo Gallo', inquilino: 'Davide Ricci', prodotto: 2, prodottoStato: 'attivo', contrattoStato: 'attivo', scadenza: '2026-12-31', canone: '1.050' },
-    { id: 16, indirizzo: 'Via Manzoni 8', citta: 'Como', locatore: 'Marco Bianchi', inquilino: null, prodotto: 1, prodottoStato: 'attivo', contrattoStato: 'concluso', scadenza: '2026-02-28', canone: '850' },
-];
-
-// ─── Stati: definizioni ────────────────────────────────────────────────────────
-const CONTRATTO_STATO = {
-    'attivo': { label: 'Attivo', class: 'bg-green-100 text-green-800' },
-    'in_scadenza': { label: 'In scadenza', class: 'bg-orange-100 text-orange-800' },
-    'vacante': { label: 'Vacante', class: 'bg-gray-100 text-gray-600' },
-    'concluso': { label: 'Concluso', class: 'bg-slate-100 text-slate-700' },
-    'sospeso': { label: 'Sospeso', class: 'bg-red-100 text-red-800' },
-};
-
-const PRODOTTO_STATO = {
-    'attivo': { label: 'Attivo', class: 'bg-green-100 text-green-800' },
-    'in_scadenza': { label: 'In scadenza', class: 'bg-orange-100 text-orange-800' },
-    'scaduto': { label: 'Scaduto', class: 'bg-red-100 text-red-800' },
-    'cancellato': { label: 'Cancellato', class: 'bg-gray-100 text-gray-600' },
-};
-
-const PRODOTTO_BADGE = {
-    1: { class: 'bg-blue-100 text-blue-800', label: 'P1' },
-    2: { class: 'bg-purple-100 text-purple-800', label: 'P2' },
-    3: { class: 'bg-amber-100 text-amber-800', label: 'P3' },
-};
-
-const fmt = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—';
-
-const StatBox = ({ label, value, icon: Icon, color }) => (
-    <Card>
-        <CardContent className="pt-5 pb-4 flex items-center gap-4">
-            <div className={`p-2.5 rounded-lg ${color} bg-opacity-10`}>
-                <Icon className={`w-5 h-5 ${color.replace('bg-', 'text-')}`} />
-            </div>
-            <div>
-                <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
-                <p className="text-sm text-muted-foreground">{label}</p>
-            </div>
-        </CardContent>
-    </Card>
-);
+import StatusBadge from '@/components/StatusBadge.jsx';
+import IntestazionePagina from '@/components/aree/IntestazionePagina';
+import Contatore from '@/components/aree/Contatore';
+import NotaMockup from '@/components/NotaMockup';
+import MappaImmobiliCria, { adessoNellImmobile, percorsoImmobile, titolareAttuale } from '@/components/admin/MappaImmobiliCria';
+import RegistrazioneContratto from '@/components/admin/anagrafica/RegistrazioneContratto';
+import { Chip, Termine, VistaRistretta } from '@/components/admin/anagrafica/ElementiScheda';
+import { useOperatoreAttivo } from '@/lib/operatoreAttivo';
+import {
+    useAnagrafica, livelloAnagrafica, ripristinaAnagraficaDemo, percorsoSoggetto,
+    STATO_REGISTRAZIONE, STATO_IMMOBILE,
+} from '@/lib/anagraficheDemo';
+import { useContratti } from '@/lib/contrattiFonte';
+import { PRODOTTI_PROPRIETARIO, nomeProdotto, fmtEuro, COLORE_PRODOTTO } from '@/data/catalogo';
+import { analizzaMesi } from '@/lib/semaforo';
+import { fmtData } from '@/lib/formato';
 
 // ═════════════════════════════════════════════════════════════════════════════
-const ContrattiPage = () => {
-    const [search, setSearch] = useState('');
-    const [filtroProdotto, setProd] = useState('tutti');
-    const [filtroContratto, setStatoContratto] = useState('tutti');
-    const [filtroProdottoStato, setStatoProdotto] = useState('tutti');
-    const [sortField, setSortField] = useState('scadenza');
-    const [sortDir, setSortDir] = useState('asc');
+// CONTRATTI E IMMOBILI — O-05
+// Tre schede, una cosa per volta:
+//   Immobili      la mappa (la stessa della panoramica) e l'elenco; il codice
+//                 dell'immobile non cambia mai
+//   Contratti     le parti, il prodotto, il canone, la registrazione, il semaforo
+//   Registrazioni da completare
+//                 non c'è un collegamento con l'Agenzia delle Entrate: il
+//                 proprietario carica la ricevuta, un operatore ne scrive a mano
+//                 gli estremi e li confronta con quelli dichiarati
+// La scheda scelta sta nell'indirizzo (?scheda=…): i link della panoramica
+// aprono quella giusta.
+// ═════════════════════════════════════════════════════════════════════════════
 
-    const contatori = useMemo(() => ({
-        totale: CONTRATTI.length,
-        attivi: CONTRATTI.filter(c => c.contrattoStato === 'attivo').length,
-        inScadenza: CONTRATTI.filter(c => c.contrattoStato === 'in_scadenza').length,
-        vacanti: CONTRATTI.filter(c => c.contrattoStato === 'vacante').length,
-        sospesi: CONTRATTI.filter(c => c.contrattoStato === 'sospeso').length,
-        totCanoni: CONTRATTI
-            .filter(c => c.contrattoStato === 'attivo' || c.contrattoStato === 'in_scadenza')
-            .reduce((sum, c) => sum + Number(c.canone.replace('.', '')), 0)
-            .toLocaleString('it-IT'),
-    }), []);
+const selectClasse = 'text-sm border border-border rounded-lg px-3 py-2 bg-background w-full sm:w-auto';
+// Prima quello che si può fare subito: la ricevuta è arrivata, mancano gli estremi.
+const ORDINE_CODA = { da_inserire: 0, senza_ricevuta: 1 };
 
-    const filtered = useMemo(() => {
-        let list = [...CONTRATTI];
-        if (search.trim()) {
-            const q = search.toLowerCase();
-            list = list.filter(c =>
-                c.indirizzo.toLowerCase().includes(q) ||
-                c.citta.toLowerCase().includes(q) ||
-                c.locatore.toLowerCase().includes(q) ||
-                (c.inquilino && c.inquilino.toLowerCase().includes(q))
-            );
-        }
-        if (filtroProdotto !== 'tutti') list = list.filter(c => c.prodotto === Number(filtroProdotto));
-        if (filtroContratto !== 'tutti') list = list.filter(c => c.contrattoStato === filtroContratto);
-        if (filtroProdottoStato !== 'tutti') list = list.filter(c => c.prodottoStato === filtroProdottoStato);
+const NomeSoggetto = ({ s, fallback }) => (s
+    ? <Link to={percorsoSoggetto(s.id)} onClick={e => e.stopPropagation()} className="text-foreground hover:underline">{s.nomeCompleto}</Link>
+    : <span className="text-muted-foreground">{fallback}</span>);
 
-        list.sort((a, b) => {
-            let va = a[sortField] ?? '', vb = b[sortField] ?? '';
-            if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
-            if (va < vb) return sortDir === 'asc' ? -1 : 1;
-            if (va > vb) return sortDir === 'asc' ? 1 : -1;
-            return 0;
-        });
-        return list;
-    }, [search, filtroProdotto, filtroContratto, filtroProdottoStato, sortField, sortDir]);
+const Ricerca = ({ valore, onCambia, segnaposto }) => (
+    <div className="relative w-full sm:flex-1 sm:min-w-56">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input placeholder={segnaposto} value={valore} onChange={e => onCambia(e.target.value)} className="pl-9" aria-label="Cerca" />
+    </div>
+);
 
-    const toggleSort = (field) => {
-        if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-        else { setSortField(field); setSortDir('asc'); }
-    };
-
-    const SortIcon = ({ field }) => sortField !== field
-        ? <ChevronUp className="w-3.5 h-3.5 opacity-20" />
-        : sortDir === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />;
-
-    const Th = ({ label, field }) => (
-        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none hover:text-foreground"
-            onClick={() => toggleSort(field)}>
-            <span className="flex items-center gap-1">{label}<SortIcon field={field} /></span>
-        </th>
-    );
-
-    const hasFilters = search || filtroProdotto !== 'tutti' || filtroContratto !== 'tutti' || filtroProdottoStato !== 'tutti';
+// ─── Immobili ─────────────────────────────────────────────────────────────────
+const SchedaImmobili = ({ modello }) => {
+    const [cerca, setCerca] = useState('');
+    const q = cerca.trim().toLowerCase();
+    const trovati = useMemo(() => modello.immobili.filter(i => {
+        const t = titolareAttuale(i);
+        return !q || [i.codice, i.dati.indirizzo, i.dati.citta, t?.soggetto?.nomeCompleto || t?.nome].filter(Boolean).join(' ').toLowerCase().includes(q);
+    }), [modello, q]);
 
     return (
-        <>
-            <Helmet><title>Contratti e Immobili - CRIA Admin</title></Helmet>
-
-            <div className="space-y-6">
-
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground mb-1">Contratti e Immobili</h1>
-                    <p className="text-sm text-muted-foreground">Gestione di tutti i contratti e immobili sulla piattaforma</p>
-                </div>
-
-                {/* Contatori */}
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                    <StatBox label="Totale immobili" value={contatori.totale} icon={Home} color="bg-blue-500" />
-                    <StatBox label="Contratti attivi" value={contatori.attivi} icon={FileText} color="bg-green-500" />
-                    <StatBox label="Tot. canoni mensili" value={`€ ${contatori.totCanoni}`} icon={Euro} color="bg-green-500" />
-                    <StatBox label="In scadenza (30gg)" value={contatori.inScadenza} icon={Clock} color="bg-orange-500" />
-                    <StatBox label="Vacanti / Sospesi" value={`${contatori.vacanti} / ${contatori.sospesi}`} icon={AlertTriangle} color="bg-gray-500" />
-                </div>
-
-                {/* Mappa */}
-                <Card>
-                    <CardContent className="p-2">
-                        <MappaImmobili />
-                    </CardContent>
-                </Card>
-
-                {/* Filtri */}
-                <Card>
-                    <CardContent className="pt-4 pb-4">
-                        <div className="flex flex-wrap gap-3 items-end">
-                            <div className="relative flex-1 min-w-48">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Cerca indirizzo, locatore o inquilino..."
-                                    value={search}
-                                    onChange={e => setSearch(e.target.value)}
-                                    className="pl-9"
-                                />
-                            </div>
-                            <Select value={filtroProdotto} onValueChange={setProd}>
-                                <SelectTrigger className="w-40"><SelectValue placeholder="Prodotto" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="tutti">Tutti i prodotti</SelectItem>
-                                    <SelectItem value="1">CRIA Gestione (P1)</SelectItem>
-                                    <SelectItem value="2">CRIA Completo (P2)</SelectItem>
-                                    <SelectItem value="3">CRIA Verifica (P3)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Select value={filtroContratto} onValueChange={setStatoContratto}>
-                                <SelectTrigger className="w-44"><SelectValue placeholder="Stato contratto" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="tutti">Tutti i contratti</SelectItem>
-                                    <SelectItem value="attivo">Attivo</SelectItem>
-                                    <SelectItem value="in_scadenza">In scadenza</SelectItem>
-                                    <SelectItem value="vacante">Vacante</SelectItem>
-                                    <SelectItem value="concluso">Concluso</SelectItem>
-                                    <SelectItem value="sospeso">Sospeso</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Select value={filtroProdottoStato} onValueChange={setStatoProdotto}>
-                                <SelectTrigger className="w-44"><SelectValue placeholder="Stato prodotto" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="tutti">Tutti i prodotti</SelectItem>
-                                    <SelectItem value="attivo">Attivo</SelectItem>
-                                    <SelectItem value="in_scadenza">In scadenza</SelectItem>
-                                    <SelectItem value="scaduto">Scaduto</SelectItem>
-                                    <SelectItem value="cancellato">Cancellato</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {hasFilters && (
-                                <Button variant="ghost" size="sm"
-                                    onClick={() => { setSearch(''); setProd('tutti'); setStatoContratto('tutti'); setStatoProdotto('tutti'); }}>
-                                    Azzera filtri
-                                </Button>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Tabella */}
+        <div className="space-y-4">
+            <Card>
+                <CardContent className="pt-4 space-y-3">
+                    <MappaImmobiliCria immobili={trovati} />
+                    <p className="text-xs text-muted-foreground">
+                        Il colore è il semaforo del contratto in corso; in grigio gli immobili ancora in pratica. Un clic sul punto apre la scheda.
+                    </p>
+                </CardContent>
+            </Card>
+            <div className="flex flex-wrap items-center gap-3">
+                <Ricerca valore={cerca} onCambia={setCerca} segnaposto="Indirizzo, proprietario, codice immobile…" />
+                {cerca && <Button variant="ghost" size="sm" onClick={() => setCerca('')}><X className="w-3.5 h-3.5 mr-1" /> Azzera</Button>}
+            </div>
+            {trovati.length === 0 ? (
+                <Card><CardContent className="py-14 text-center text-sm text-muted-foreground">Nessun immobile con questa ricerca.</CardContent></Card>
+            ) : (
                 <Card>
                     <CardContent className="p-0">
-                        <div className="overflow-x-auto">
+                        <ul className="divide-y divide-border">
+                            {trovati.map(i => {
+                                const t = titolareAttuale(i);
+                                return (
+                                    <li key={i.id}>
+                                        <Link to={percorsoImmobile(i.id)} className="flex items-center gap-3 px-4 sm:px-6 py-3 hover:bg-muted/30">
+                                            <span className="hidden sm:block w-24 flex-shrink-0 font-mono text-xs text-muted-foreground">{i.codice}</span>
+                                            <span className="flex-1 min-w-0 space-y-0.5">
+                                                <span className="block font-medium text-foreground">{i.dati.indirizzo}, {i.dati.citta}</span>
+                                                <span className="block text-xs text-muted-foreground">
+                                                    <span className="sm:hidden font-mono">{i.codice} · </span>
+                                                    Proprietario: {t?.soggetto?.nomeCompleto || t?.nome || '—'} · {adessoNellImmobile(i)}
+                                                </span>
+                                            </span>
+                                            <Chip classe={STATO_IMMOBILE[i.stato].classe}>{STATO_IMMOBILE[i.stato].etichetta}</Chip>
+                                            <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                        </Link>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </CardContent>
+                </Card>
+            )}
+            <p className="text-xs text-muted-foreground">Il codice dell’immobile non cambia mai: cambiano inquilini e proprietari, l’immobile e il suo storico restano.</p>
+        </div>
+    );
+};
+
+// ─── Contratti ────────────────────────────────────────────────────────────────
+const SchedaContratti = ({ righe }) => {
+    const navigate = useNavigate();
+    const [cerca, setCerca] = useState('');
+    const [fProdotto, setFProdotto] = useState('tutti');
+    const [fRegistrazione, setFRegistrazione] = useState('tutti');
+    const q = cerca.trim().toLowerCase();
+    const trovati = righe.filter(r => {
+        const testo = [r.c.immobile.indirizzo, r.c.immobile.citta, r.proprietario?.nomeCompleto, r.inquilino?.nomeCompleto, r.c.codiceUnivoco, r.reg.estremi.numero];
+        if (q && !testo.filter(Boolean).join(' ').toLowerCase().includes(q)) return false;
+        if (fProdotto !== 'tutti' && r.c.prodotto !== fProdotto) return false;
+        if (fRegistrazione !== 'tutti' && r.reg.stato !== fRegistrazione) return false;
+        return true;
+    });
+    const filtriAttivi = cerca || fProdotto !== 'tutti' || fRegistrazione !== 'tutti';
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+                <Ricerca valore={cerca} onCambia={setCerca} segnaposto="Indirizzo, parti, codice del contratto, numero di registrazione…" />
+                <select value={fProdotto} onChange={e => setFProdotto(e.target.value)} className={selectClasse} aria-label="Prodotto">
+                    <option value="tutti">Tutti i prodotti</option>
+                    {PRODOTTI_PROPRIETARIO.map(p => <option key={p} value={p}>{nomeProdotto(p)}</option>)}
+                </select>
+                <select value={fRegistrazione} onChange={e => setFRegistrazione(e.target.value)} className={selectClasse} aria-label="Registrazione">
+                    <option value="tutti">Ogni registrazione</option>
+                    {Object.entries(STATO_REGISTRAZIONE).map(([k, v]) => <option key={k} value={k}>{v.etichetta}</option>)}
+                </select>
+                {filtriAttivi && (
+                    <Button variant="ghost" size="sm" onClick={() => { setCerca(''); setFProdotto('tutti'); setFRegistrazione('tutti'); }}>
+                        <X className="w-3.5 h-3.5 mr-1" /> Azzera
+                    </Button>
+                )}
+            </div>
+
+            {trovati.length === 0 ? (
+                <Card><CardContent className="py-14 text-center text-sm text-muted-foreground">Nessun contratto con questi filtri.</CardContent></Card>
+            ) : (
+                <>
+                    <Card className="hidden md:block">
+                        <CardContent className="p-0 overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead className="border-b border-border bg-muted/40">
-                                    <tr>
-                                        <Th label="Indirizzo" field="indirizzo" />
-                                        <Th label="locatore" field="locatore" />
-                                        <Th label="Inquilino" field="inquilino" />
-                                        <Th label="Prodotto" field="prodotto" />
-                                        <Th label="Stato contratto" field="contrattoStato" />
-                                        <Th label="Stato prodotto" field="prodottoStato" />
-                                        <Th label="Canone" field="canone" />
-                                        <Th label="Scadenza" field="scadenza" />
-                                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Scheda</th>
+                                    <tr className="text-left text-xs font-semibold text-muted-foreground uppercase">
+                                        <th className="px-4 py-3">Immobile</th>
+                                        <th className="px-4 py-3">Parti</th>
+                                        <th className="px-4 py-3">Prodotto</th>
+                                        <th className="px-4 py-3">Canone e durata</th>
+                                        <th className="px-4 py-3">Registrazione</th>
+                                        <th className="px-4 py-3">Semaforo</th>
+                                        <th className="px-4 py-3" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
-                                    {filtered.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
-                                                Nessun risultato con i filtri selezionati.
+                                    {trovati.map(r => (
+                                        <tr key={r.c.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => navigate(percorsoImmobile(r.immobile.id))}>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <Link to={percorsoImmobile(r.immobile.id)} onClick={e => e.stopPropagation()} className="font-medium text-foreground hover:underline">{r.c.immobile.indirizzo}</Link>
+                                                <p className="text-xs text-muted-foreground">{r.c.immobile.citta}</p>
+                                                <p className="text-xs text-muted-foreground font-mono whitespace-nowrap">{r.c.codiceUnivoco}</p>
                                             </td>
-                                        </tr>
-                                    ) : filtered.map((c) => (
-                                        <tr key={c.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3">
-                                                <p className="font-medium text-foreground">{c.indirizzo}</p>
-                                                <p className="text-xs text-muted-foreground">{c.citta}</p>
+                                            <td className="px-4 py-3 text-xs space-y-0.5">
+                                                <p><span className="text-muted-foreground">Proprietario:</span> <NomeSoggetto s={r.proprietario} fallback={r.c.locatore.nome} /></p>
+                                                <p><span className="text-muted-foreground">Inquilino:</span> <NomeSoggetto s={r.inquilino} fallback={r.c.conduttore.nome} /></p>
                                             </td>
-                                            <td className="px-4 py-3 text-muted-foreground">{c.locatore}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {c.inquilino || <span className="text-gray-400 italic">—</span>}
+                                            <td className="px-4 py-3"><Chip aCapo classe={COLORE_PRODOTTO[r.c.prodotto]}>{nomeProdotto(r.c.prodotto)}</Chip></td>
+                                            <td className="px-4 py-3 tabular-nums whitespace-nowrap">
+                                                <p className="text-foreground whitespace-nowrap">{fmtEuro(r.c.canone)} al mese</p>
+                                                <p className="text-xs text-muted-foreground whitespace-nowrap">{fmtData(r.c.inizio)} → {fmtData(r.c.fine)}</p>
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRODOTTO_BADGE[c.prodotto].class}`}>
-                                                    {PRODOTTO_BADGE[c.prodotto].label}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${CONTRATTO_STATO[c.contrattoStato].class}`}>
-                                                    {CONTRATTO_STATO[c.contrattoStato].label}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRODOTTO_STATO[c.prodottoStato].class}`}>
-                                                    {PRODOTTO_STATO[c.prodottoStato].label}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground tabular-nums whitespace-nowrap">€ {c.canone}/mese</td>
-                                            <td className="px-4 py-3 text-muted-foreground tabular-nums whitespace-nowrap">{fmt(c.scadenza)}</td>
-                                            <td className="px-4 py-3 text-right">
-                                                <Link to={`/dashboard/admin/immobili/${c.id}`}>
-                                                    <Button variant="ghost" size="sm" className="gap-1.5">
-                                                        Apri <ArrowUpRight className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                </Link>
-                                            </td>
+                                            <td className="px-4 py-3"><Chip classe={STATO_REGISTRAZIONE[r.reg.stato].classe}>{STATO_REGISTRAZIONE[r.reg.stato].breve}</Chip></td>
+                                            <td className="px-4 py-3"><StatusBadge status={r.semaforo} /></td>
+                                            <td className="px-4 py-3 text-right"><ChevronRight className="w-4 h-4 text-muted-foreground inline" /></td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
-                        {filtered.length > 0 && (
-                            <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-                                {filtered.length === CONTRATTI.length
-                                    ? `${CONTRATTI.length} immobili totali`
-                                    : `${filtered.length} di ${CONTRATTI.length} immobili`}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                    <div className="md:hidden space-y-3">
+                        {trovati.map(r => (
+                            <Card key={r.c.id}>
+                                <CardContent className="pt-4 pb-4 space-y-2.5">
+                                    <Link to={percorsoImmobile(r.immobile.id)} className="flex items-start gap-2">
+                                        <span className="flex-1 min-w-0">
+                                            <span className="block font-medium text-foreground">{r.c.immobile.indirizzo}, {r.c.immobile.citta}</span>
+                                            <span className="block text-xs text-muted-foreground font-mono break-all">{r.c.codiceUnivoco}</span>
+                                        </span>
+                                        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                    </Link>
+                                    <p className="text-xs text-muted-foreground">
+                                        Proprietario: <NomeSoggetto s={r.proprietario} fallback={r.c.locatore.nome} /> · Inquilino: <NomeSoggetto s={r.inquilino} fallback={r.c.conduttore.nome} />
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <Chip classe={COLORE_PRODOTTO[r.c.prodotto]}>{nomeProdotto(r.c.prodotto)}</Chip>
+                                        <Chip classe={STATO_REGISTRAZIONE[r.reg.stato].classe}>{STATO_REGISTRAZIONE[r.reg.stato].breve}</Chip>
+                                        <StatusBadge status={r.semaforo} />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{fmtEuro(r.c.canone)} al mese · {fmtData(r.c.inizio)} → {fmtData(r.c.fine)}</p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Il codice sotto l’indirizzo è quello del contratto: è la causale di ogni bonifico verso CRIA. Il semaforo è quello del contratto, il dettaglio di quello della persona.
+                    </p>
+                </>
+            )}
+        </div>
+    );
+};
 
+// ─── Registrazioni da completare ──────────────────────────────────────────────
+const SchedaRegistrazioni = ({ coda }) => {
+    const [aperto, setAperto] = useState(null);
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base"><Receipt className="w-5 h-5" /> Registrazioni da completare</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                    I contratti di cui mancano gli estremi di registrazione all’Agenzia delle Entrate. Il proprietario carica la ricevuta, un operatore ne legge gli estremi e li confronta con quelli dichiarati. Chi non l’ha caricata riceve una richiesta nella sua area.
+                </p>
+            </CardHeader>
+            <CardContent className="p-0">
+                {coda.length === 0 ? (
+                    <p className="px-6 pb-6 text-sm text-muted-foreground">Tutte le registrazioni sono riscontrate sulla ricevuta.</p>
+                ) : (
+                    <ul className="divide-y divide-border border-t border-border">
+                        {coda.map(r => {
+                            const stato = STATO_REGISTRAZIONE[r.reg.stato];
+                            const eAperto = aperto === r.c.id;
+                            return (
+                                <li key={r.c.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAperto(eAperto ? null : r.c.id)}
+                                        aria-expanded={eAperto}
+                                        className="w-full flex items-center gap-3 px-4 sm:px-6 py-3 text-left hover:bg-muted/30 focus-visible:outline-none focus-visible:bg-muted/30"
+                                    >
+                                        <span className="flex-1 min-w-0 space-y-1">
+                                            <span className="block font-medium text-foreground">{r.c.immobile.indirizzo}, {r.c.immobile.citta}</span>
+                                            <span className="block text-xs text-muted-foreground">Proprietario: {r.proprietario?.nomeCompleto || r.c.locatore.nome} · {nomeProdotto(r.c.prodotto)}</span>
+                                            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                <Chip classe={stato.classe}>{stato.breve}</Chip>
+                                                <Termine termine={r.reg.termine} etichetta={r.reg.stato === 'da_inserire' ? 'Da inserire entro il' : 'Risposta entro il'} />
+                                                {r.reg.stato === 'senza_ricevuta' && !r.reg.ultimaRichiesta && <span className="text-xs text-muted-foreground">Non ancora chiesta</span>}
+                                            </span>
+                                        </span>
+                                        <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${eAperto ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {eAperto && (
+                                        <div className="px-4 sm:px-6 pb-5 pt-1 space-y-3">
+                                            <RegistrazioneContratto registrazione={r.reg} conStato={false} />
+                                            <Link to={percorsoImmobile(r.immobile.id)} className="inline-block text-xs font-medium text-primary hover:underline">Apri la scheda dell’immobile →</Link>
+                                        </div>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </CardContent>
+        </Card>
+    );
+};
+
+// ─── La pagina ────────────────────────────────────────────────────────────────
+const ContrattiPage = () => {
+    const { operatore } = useOperatoreAttivo();
+    const livello = livelloAnagrafica(operatore.funzione);
+    const modello = useAnagrafica();
+    const contratti = useContratti();
+    const [parametri, setParametri] = useSearchParams();
+
+    const righe = useMemo(() => contratti.map(c => ({
+        c,
+        semaforo: analizzaMesi(c.mesi).semaforo,
+        reg: modello.registrazioneDi(c.id),
+        proprietario: modello.soggettoDi(c, 'locatore'),
+        inquilino: modello.soggettoDi(c, 'conduttore'),
+        immobile: modello.trovaImmobile(c.id),
+    })), [modello, contratti]);
+
+    const coda = righe
+        .filter(r => r.reg.stato !== 'completa')
+        .sort((x, y) => (y.reg.termine?.scaduto ? 1 : 0) - (x.reg.termine?.scaduto ? 1 : 0) || ORDINE_CODA[x.reg.stato] - ORDINE_CODA[y.reg.stato]);
+    const oltreTermine = coda.filter(r => r.reg.termine?.scaduto).length;
+
+    const SCHEDE = [
+        { id: 'immobili', etichetta: 'Immobili', numero: modello.immobili.length, icona: Home },
+        { id: 'contratti', etichetta: 'Contratti', numero: contratti.length, icona: FileText },
+        { id: 'registrazioni', etichetta: 'Registrazioni da completare', breve: 'Registrazioni', numero: coda.length, icona: Receipt, urgenti: oltreTermine },
+    ];
+    const scheda = SCHEDE.some(s => s.id === parametri.get('scheda')) ? parametri.get('scheda') : 'immobili';
+    const scegli = (id) => setParametri(p => {
+        const n = new URLSearchParams(p);
+        n.set('scheda', id);
+        return n;
+    }, { replace: true });
+
+    const intestazione = (
+        <IntestazionePagina
+            titolo="Contratti e immobili"
+            sottotitolo="Gli immobili sulla mappa, i contratti con le loro parti, e le registrazioni ancora da riscontrare sulla ricevuta."
+        />
+    );
+
+    if (livello !== 'L') {
+        return (
+            <>
+                <Helmet><title>Contratti e immobili - CRIA</title></Helmet>
+                <div className="space-y-6">
+                    {intestazione}
+                    {livello === 'agg' && (
+                        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                            <Contatore etichetta="Contratti su CRIA" valore={contratti.length} icona={FileText} colore="bg-blue-500" />
+                            <Contatore etichetta="Immobili" valore={modello.immobili.length} icona={Home} colore="bg-slate-500" />
+                            <Contatore etichetta="Registrazioni da completare" valore={coda.length} icona={Receipt} colore="bg-amber-500" />
+                        </div>
+                    )}
+                    <VistaRistretta livello={livello} />
+                </div>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <Helmet><title>Contratti e immobili - CRIA</title></Helmet>
+            <div className="space-y-6">
+                {intestazione}
+
+                {/* Sul telefono le tre schede si dividono la riga, con i nomi corti. */}
+                <div className="grid grid-cols-3 sm:inline-flex gap-1 p-1 bg-muted rounded-lg w-full sm:w-auto" role="tablist" aria-label="Cosa vedere">
+                    {SCHEDE.map(({ id, etichetta, breve, numero, icona: Icona, urgenti }) => (
+                        <button
+                            key={id}
+                            type="button"
+                            role="tab"
+                            aria-selected={scheda === id}
+                            onClick={() => scegli(id)}
+                            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap px-2 sm:px-3 py-2 rounded-md text-sm font-medium transition-colors ${scheda === id ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                        >
+                            <Icona className="hidden sm:block w-4 h-4" />
+                            <span className="sm:hidden">{breve || etichetta}</span>
+                            <span className="hidden sm:inline">{etichetta}</span>
+                            <span className="tabular-nums text-xs text-muted-foreground">{numero}</span>
+                            {urgenti > 0 && <span className="rounded-full bg-red-100 px-1.5 text-[11px] font-semibold text-red-700" title="Oltre il termine">{urgenti}</span>}
+                        </button>
+                    ))}
+                </div>
+
+                {scheda === 'immobili' && <SchedaImmobili modello={modello} />}
+                {scheda === 'contratti' && <SchedaContratti righe={righe} />}
+                {scheda === 'registrazioni' && <SchedaRegistrazioni coda={coda} />}
+
+                <NotaMockup>
+                    <p>Richieste di ricevuta ed estremi inseriti restano in questo browser: le aree di proprietario e inquilino li vedranno col database.</p>
+                    <button type="button" className="underline font-medium mt-2" onClick={() => { ripristinaAnagraficaDemo(); toast.success('Anagrafica demo ripristinata'); }}>
+                        Ripristina l’anagrafica demo
+                    </button>
+                </NotaMockup>
             </div>
         </>
     );

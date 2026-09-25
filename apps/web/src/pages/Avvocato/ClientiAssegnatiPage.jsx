@@ -8,6 +8,7 @@ import {
     Users, Search, X, Eye, AlertTriangle, FileText,
     MessageSquare, Calendar, ChevronRight
 } from 'lucide-react';
+import { etichettaRuolo } from '@/lib/etichette';
 
 const CLIENTI = [
     { id: 1, nome: 'Marco Bianchi', ruolo: 'locatore', email: 'marco.bianchi@email.it', dataAssegnazione: '2026-02-10', stato: 'attivo', contestazioni: 1, documenti: 1, ticket: 0 },
@@ -62,7 +63,7 @@ const ClientiAssegnatiPage = () => {
         <>
             <Helmet><title>Clienti assegnati - CRIA Avvocato</title></Helmet>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <div className="space-y-6">
 
                 <div>
                     <h1 className="text-2xl font-bold text-foreground mb-1">Clienti assegnati</h1>
@@ -73,7 +74,7 @@ const ClientiAssegnatiPage = () => {
                     {[
                         { label: 'Totali', value: contatori.totali, color: 'bg-blue-500' },
                         { label: 'Attivi', value: contatori.attivi, color: 'bg-green-500' },
-                        { label: 'locatori', value: contatori.locatori, color: 'bg-purple-500' },
+                        { label: 'Proprietari', value: contatori.locatori, color: 'bg-purple-500' },
                         { label: 'Inquilini', value: contatori.inquilini, color: 'bg-amber-500' },
                     ].map(({ label, value, color }) => (
                         <Card key={label}>
@@ -100,7 +101,7 @@ const ClientiAssegnatiPage = () => {
                             <select value={filtroRuolo} onChange={e => setFRuolo(e.target.value)}
                                 className="text-sm border border-border rounded-lg px-3 py-2 bg-background">
                                 <option value="tutti">Tutti i ruoli</option>
-                                <option value="locatore">locatori</option>
+                                <option value="locatore">Proprietari</option>
                                 <option value="inquilino">Inquilini</option>
                                 <option value="agenzia">Agenzie</option>
                             </select>
@@ -147,7 +148,7 @@ const ClientiAssegnatiPage = () => {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${RUOLO_BADGE[c.ruolo]}`}>
-                                                    {c.ruolo}
+                                                    {etichettaRuolo(c.ruolo)}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground tabular-nums">{fmtData(c.dataAssegnazione)}</td>

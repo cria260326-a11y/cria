@@ -1,290 +1,147 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Home, MessageSquare, AlertTriangle, ArrowRight, CalendarCheck, Scale, Euro, Gavel } from 'lucide-react';
 import PaymentTimeline from '@/components/PaymentTimeline.jsx';
-import StatusBadge from '@/components/StatusBadge.jsx';
-import {
-    Home, Calendar, Euro, CheckCircle2, AlertTriangle,
-    Bell, Download, Activity, Award, Info, FileText,
-    MessageSquare, ArrowRight, Flag, XCircle, TrendingUp,
-    Clock, Shield
-} from 'lucide-react';
-import { toast } from 'sonner';
+import IntestazionePagina from '@/components/aree/IntestazionePagina';
+import BoxSemaforo from '@/components/aree/BoxSemaforo';
+import { useDatiInquilino } from '@/hooks/useDatiArea';
+import { OGGI } from '@/data/datiDemo';
+import { morositaDeiContratti } from '@/data/pratiche';
+import { fmtEuro, PRODOTTI } from '@/data/catalogo';
+import { contestazioneChiusa, etichettaStatoContestazione, classeStatoContestazione } from '@/lib/etichette';
+import { nomeMese, fmtData, fmtDataLunga, meseSuccessivo, giorniTra } from '@/lib/formato';
 
-// ─── Mock dati ─────────────────────────────────────────────────────────────────
-const UTENTE = { nome: 'Sofia', cognome: 'Martini' };
+// I-01 — Panoramica dell'inquilino. Il semaforo è quello della persona,
+// sempre visibile, con la spiegazione di come è composto.
 
-const CONTRATTO = {
-    immobile: 'Via Roma 42, Milano',
-    locatore: 'Marco Bianchi',
-    monthlyRent: 1200,
-    durata: '12 mesi',
-    dataInizio: '01/01/2026',
-    dataFine: '31/12/2026',
-    totalePagato: 4800,
-    totalePrevisto: 14400,
-    status: 'verde',
-    payments: [
-        { month: 0, paid: true, day: 3 },
-        { month: 1, paid: true, day: 5 },
-        { month: 2, paid: true, day: 4 },
-        { month: 3, paid: true, day: 2 },
-    ],
-};
-
-const SEGNALAZIONI_RICEVUTE = [
-    {
-        id: 1,
-        data: '2026-04-03',
-        mese: 'Aprile 2026',
-        tipo: 'pagato',
-        contestabile: false,
-        contestata: false,
-        giorniRimanenti: 0,
-    },
-    {
-        id: 2,
-        data: '2026-04-29',
-        mese: 'Aprile 2026',
-        tipo: 'non_pagato',
-        contestabile: true,
-        contestata: false,
-        giorniRimanenti: 5,
-    },
-];
-
-const CONTESTAZIONI_APERTE = [
-    { id: 1, mese: 'Marzo 2026', stato: 'in verifica', dataApertura: '2026-03-29' },
-];
-
-const ATTIVITA = [
-    { id: 1, testo: 'Hai pagato l\'affitto di Aprile', data: '03/04/2026', icon: CheckCircle2, color: 'text-green-600 bg-green-50', ref: '/dashboard/inquilino/pagamenti' },
-    { id: 2, testo: 'Marco Bianchi ha segnalato il pagamento ricevuto', data: '04/04/2026', icon: Bell, color: 'text-blue-600 bg-blue-50', ref: '/dashboard/inquilino/segnalazioni' },
-    { id: 3, testo: 'CRIA ha aggiornato lo stato della contestazione', data: '30/03/2026', icon: Activity, color: 'text-purple-600 bg-purple-50', ref: '/dashboard/inquilino/contestazioni/1' },
-];
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-const fmtEur = (n) => `€ ${n.toLocaleString('it-IT')}`;
-
-const SCORE_CONFIG = {
-    verde: { label: 'Inquilino affidabile', desc: 'Pagamenti regolari negli ultimi 12 mesi', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', icon: Award },
-    giallo: { label: 'Pagamenti in ritardo', desc: 'Hai pagato in ritardo negli ultimi mesi', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200', icon: Clock },
-    rosso: { label: 'Pagamenti irregolari', desc: 'Stai accumulando ritardi — recupera la regolarità', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', icon: AlertTriangle },
-};
-
-// ─── Componente ────────────────────────────────────────────────────────────────
 const TenantDashboard = () => {
-    const [segnalazioni, setSegnalazioni] = useState(SEGNALAZIONI_RICEVUTE);
-    const score = SCORE_CONFIG[CONTRATTO.status];
-    const ScoreIcon = score.icon;
+    const { persona, contratti, analisiPersona, contestazioni } = useDatiInquilino();
+    const prossimo = meseSuccessivo(OGGI.slice(0, 7));
+    const inCorso = contestazioni.filter(k => !contestazioneChiusa(k.stato));
+    const morosita = morositaDeiContratti(contratti);
+    const contestabili = contratti.flatMap(c => c.mesi.filter(m => m.stato === 'in_attesa').map(m => ({ ...m, c })));
 
-    const percentualePagato = Math.round((CONTRATTO.totalePagato / CONTRATTO.totalePrevisto) * 100);
-    const segnalazioniContestabili = segnalazioni.filter(s => s.contestabile && !s.contestata && s.tipo === 'non_pagato');
+    if (contratti.length === 0) {
+        return (
+            <div className="space-y-6">
+                <IntestazionePagina titolo={`Buongiorno, ${persona?.nome}`} />
+                <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Non risulti inquilino di nessun contratto CRIA.</CardContent></Card>
+            </div>
+        );
+    }
 
     return (
         <>
-            <Helmet><title>Dashboard - CRIA</title></Helmet>
+            <Helmet><title>Panoramica - CRIA</title></Helmet>
+            <div className="space-y-6">
+                <IntestazionePagina
+                    titolo={`Buongiorno, ${persona?.nome}`}
+                    sottotitolo={`Il tuo semaforo, il tuo contratto e le segnalazioni del proprietario · situazione al ${fmtDataLunga(OGGI)}`}
+                    azioni={<Link to="/dashboard/inquilino/assistenza"><Button size="sm" className="gap-2"><MessageSquare className="w-4 h-4" /> Contatta CRIA</Button></Link>}
+                />
 
-            <div className="min-h-screen bg-background">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-
-                    {/* Intestazione */}
-                    <div className="flex items-start justify-between flex-wrap gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-foreground">Buongiorno, {UTENTE.nome} 👋</h1>
-                            <p className="text-sm text-muted-foreground mt-1">Ecco la situazione del tuo contratto</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" size="sm" className="gap-2"
-                                onClick={() => toast.info('Download disponibile dopo backend')}>
-                                <Download className="w-4 h-4" /> Scarica report
-                            </Button>
-                            <Link to="/dashboard/inquilino/assistenza">
-                                <Button size="sm" className="gap-2">
-                                    <MessageSquare className="w-4 h-4" /> Contatta CRIA
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Score affidabilità */}
-                    <Card className={`border-2 ${score.border}`}>
-                        <CardContent className={`pt-5 pb-5 ${score.bg} rounded-lg`}>
-                            <div className="flex items-center gap-4 flex-wrap">
-                                <div className={`w-14 h-14 rounded-full bg-white flex items-center justify-center flex-shrink-0 ${score.color}`}>
-                                    <ScoreIcon className="w-7 h-7" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className={`text-lg font-bold ${score.color}`}>{score.label}</p>
-                                    <p className="text-sm text-muted-foreground">{score.desc}</p>
-                                </div>
-                                <StatusBadge status={CONTRATTO.status} />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Contatori */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {[
-                            { label: 'Immobile in affitto', value: '1', icon: Home, color: 'bg-blue-500' },
-                            { label: 'Durata contratto', value: CONTRATTO.durata, icon: Calendar, color: 'bg-purple-500' },
-                            { label: 'Totale pagato', value: fmtEur(CONTRATTO.totalePagato), icon: Euro, color: 'bg-green-500' },
-                            { label: 'Pagamenti regolari', value: '4 / 4', icon: CheckCircle2, color: 'bg-teal-500' },
-                        ].map(({ label, value, icon: Icon, color }) => (
-                            <Card key={label}>
-                                <CardContent className="pt-5 pb-4 flex items-center gap-3">
-                                    <div className={`p-2.5 rounded-lg ${color} flex-shrink-0`}>
-                                        <Icon className="w-5 h-5 text-white" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xl font-bold tabular-nums text-foreground">{value}</p>
-                                        <p className="text-xs text-muted-foreground">{label}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-
-                    {/* Avviso contestabili */}
-                    {segnalazioniContestabili.length > 0 && (
-                        <Link to="/dashboard/inquilino/segnalazioni">
-                            <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl hover:bg-yellow-100 transition-colors cursor-pointer">
-                                <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-yellow-800">
-                                        {segnalazioniContestabili.length} {segnalazioniContestabili.length === 1 ? 'segnalazione contestabile' : 'segnalazioni contestabili'}
-                                    </p>
-                                    <p className="text-xs text-yellow-700">
-                                        Hai ricevuto delle segnalazioni di mancato pagamento. Puoi contestarle entro pochi giorni.
-                                    </p>
-                                </div>
-                                <ArrowRight className="w-4 h-4 text-yellow-600 flex-shrink-0" />
-                            </div>
-                        </Link>
-                    )}
-
-                    {/* Avviso contestazioni aperte */}
-                    {CONTESTAZIONI_APERTE.length > 0 && (
-                        <Link to="/dashboard/inquilino/contestazioni">
-                            <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors cursor-pointer">
-                                <Activity className="w-5 h-5 text-red-500 flex-shrink-0" />
-                                <p className="text-sm text-red-700 flex-1">
-                                    Hai <strong>{CONTESTAZIONI_APERTE.length} contestazione aperta</strong>. CRIA la sta gestendo — riceverai aggiornamenti.
-                                </p>
-                                <ArrowRight className="w-4 h-4 text-red-500 flex-shrink-0" />
-                            </div>
-                        </Link>
-                    )}
-
-                    {/* Progresso contratto + Storico pagamenti */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                        {/* Progresso contratto */}
-                        <Card>
-                            <CardHeader className="pb-3">
-                                <CardTitle className="flex items-center gap-2 text-base">
-                                    <TrendingUp className="w-5 h-5" /> Progresso contratto
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex items-baseline justify-between">
-                                    <p className="text-3xl font-bold text-foreground tabular-nums">{percentualePagato}%</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {fmtEur(CONTRATTO.totalePagato)} di {fmtEur(CONTRATTO.totalePrevisto)}
-                                    </p>
-                                </div>
-                                <div className="h-3 bg-muted rounded-full overflow-hidden">
-                                    <div className="h-full bg-primary rounded-full transition-all"
-                                        style={{ width: `${percentualePagato}%` }} />
-                                </div>
-                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border text-sm">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Inizio contratto</p>
-                                        <p className="font-medium text-foreground">{CONTRATTO.dataInizio}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Fine contratto</p>
-                                        <p className="font-medium text-foreground">{CONTRATTO.dataFine}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Contratto attivo */}
-                        <Card>
-                            <CardHeader className="pb-3">
-                                <CardTitle className="flex items-center gap-2 text-base">
-                                    <Home className="w-5 h-5" /> Il mio contratto
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Immobile</p>
-                                    <p className="font-medium text-foreground">{CONTRATTO.immobile}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">locatore</p>
-                                    <p className="font-medium text-foreground">{CONTRATTO.locatore}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Canone mensile</p>
-                                    <p className="font-medium text-foreground">{fmtEur(CONTRATTO.monthlyRent)}</p>
-                                </div>
-                                <Link to="/dashboard/inquilino/contratto">
-                                    <Button variant="outline" size="sm" className="w-full gap-2 mt-2">
-                                        <FileText className="w-3.5 h-3.5" /> Apri scheda contratto
-                                    </Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Storico pagamenti */}
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <Euro className="w-5 h-5" /> Storico pagamenti — ultimi 12 mesi
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <PaymentTimeline payments={CONTRATTO.payments} />
-                            <div className="mt-4 flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                                <p className="text-xs text-blue-800">
-                                    Mantenere uno storico di pagamenti regolari aumenta il tuo punteggio inquilino e ti dà accesso a vantaggi futuri su nuovi contratti.
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Attività recenti */}
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <Activity className="w-5 h-5" /> Attività recenti
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {ATTIVITA.map(a => {
-                                const Icon = a.icon;
-                                return (
-                                    <Link key={a.id} to={a.ref} className="flex items-start gap-3 hover:bg-muted/30 -mx-2 px-2 py-1.5 rounded-lg">
-                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${a.color}`}>
-                                            <Icon className="w-3.5 h-3.5" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-foreground leading-snug">{a.testo}</p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">{a.data}</p>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-                        </CardContent>
-                    </Card>
-
+                <BoxSemaforo
+                    analisi={analisiPersona}
+                    titolo="Il tuo semaforo"
+                    nota="Lo vedi sempre ed è calcolato su di te, su tutti i tuoi contratti di affitto: media del giorno di pagamento negli ultimi 12 mesi. Verde entro il 5, giallo dal 6 al 10, rosso oltre il 10 o con un mese non pagato. I mesi che il proprietario non ha segnalato e quelli contestati non contano."
+                />
+                <div className="flex justify-end -mt-3">
+                    <Link to="/dashboard/inquilino/semaforo" className="text-xs text-primary hover:underline flex items-center gap-1">Come è calcolato e chi lo vede <ArrowRight className="w-3 h-3" /></Link>
                 </div>
+
+                {contestabili.map(m => (
+                    <Link key={`${m.c.id}-${m.mese}`} to="/dashboard/inquilino/segnalazioni">
+                        <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl hover:bg-yellow-100 transition-colors">
+                            <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                            <p className="text-sm text-yellow-900 flex-1">
+                                Il proprietario ha segnalato il mancato pagamento di {nomeMese(m.mese).toLowerCase()} il {fmtData(m.segnalazione.il)}.
+                                Se hai pagato puoi contestarlo fino al {fmtData(m.scadenzaContestazione)} ({giorniTra(OGGI, m.scadenzaContestazione)} giorni).
+                            </p>
+                            <ArrowRight className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                        </div>
+                    </Link>
+                ))}
+
+                {morosita.map(m => {
+                    const prossima = m.piano?.rate.find(r => r.stato !== 'pagata');
+                    return (
+                        <Link key={m.id} to="/dashboard/inquilino/morosita">
+                            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors">
+                                <Gavel className="w-5 h-5 text-amber-700 flex-shrink-0" />
+                                <p className="text-sm text-amber-900 flex-1">
+                                    Hai una pratica di morosità per il canone di {m.mesi.map(x => nomeMese(x).toLowerCase()).join(', ')}.
+                                    {prossima ? ` La rata ${prossima.n} del piano di rientro scade il ${fmtData(prossima.scadenza)}.` : ''}
+                                </p>
+                                <ArrowRight className="w-4 h-4 text-amber-700 flex-shrink-0" />
+                            </div>
+                        </Link>
+                    );
+                })}
+
+                {inCorso.length > 0 && (
+                    <Link to="/dashboard/inquilino/contestazioni">
+                        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors">
+                            <Scale className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                            <p className="text-sm text-blue-900 flex-1">Hai {inCorso.length} contestazione in corso. CRIA risponde entro il {fmtData(inCorso[0].rispostaEntro)}.</p>
+                            <ArrowRight className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                        </div>
+                    </Link>
+                )}
+
+                {contratti.map(c => (
+                    <div key={c.id} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                        <Card className="xl:col-span-2">
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2 text-base"><Home className="w-5 h-5" /> Il mio contratto</CardTitle>
+                                    <Link to="/dashboard/inquilino/contratto" className="text-xs text-primary hover:underline">Apri la scheda →</Link>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                                <div><p className="text-xs text-muted-foreground">Immobile</p><p className="font-medium text-foreground">{c.immobile.indirizzo}, {c.immobile.citta}</p></div>
+                                <div><p className="text-xs text-muted-foreground">Proprietario</p><p className="font-medium text-foreground">{c.locatore.nome}</p></div>
+                                <div><p className="text-xs text-muted-foreground">Canone</p><p className="font-medium text-foreground">{fmtEuro(c.canone)}/mese</p></div>
+                                <div><p className="text-xs text-muted-foreground">Scadenza</p><p className="font-medium text-foreground">{fmtData(c.fine)}</p></div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Euro className="w-5 h-5" /> Prossimo canone</CardTitle></CardHeader>
+                            <CardContent className="space-y-1">
+                                <p className="text-2xl font-bold text-foreground">{fmtEuro(c.canone)}</p>
+                                <p className="text-sm text-muted-foreground">Scade il 1 {nomeMese(prossimo).toLowerCase()}</p>
+                                <p className="text-xs text-muted-foreground pt-2">Pagando entro il 5 il mese conta come puntuale.</p>
+                                {PRODOTTI[c.prodotto]?.incassa === 'cria' && (
+                                    <Link to="/dashboard/inquilino/pagamenti" className="inline-block pt-1 text-xs text-primary hover:underline">Lo paghi a CRIA: IBAN e causale →</Link>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card className="xl:col-span-3">
+                            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><CalendarCheck className="w-5 h-5" /> I tuoi ultimi 12 mesi</CardTitle></CardHeader>
+                            <CardContent><PaymentTimeline mesi={c.mesi} /></CardContent>
+                        </Card>
+                    </div>
+                ))}
+
+                {contestazioni.length > 0 && (
+                    <Card>
+                        <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Scale className="w-5 h-5" /> Le tue contestazioni</CardTitle></CardHeader>
+                        <CardContent className="p-0 divide-y divide-border">
+                            {contestazioni.map(k => (
+                                <Link key={k.id} to={`/dashboard/inquilino/contestazioni/${k.id}`} className="flex items-center gap-4 px-6 py-3 hover:bg-muted/30">
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-foreground">{nomeMese(k.mese)}</p>
+                                        <p className="text-xs text-muted-foreground">Aperta il {fmtData(k.apertaIl)}</p>
+                                    </div>
+                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${classeStatoContestazione(k.stato)}`}>{etichettaStatoContestazione(k.stato, 'conduttore')}</span>
+                                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                                </Link>
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </>
     );

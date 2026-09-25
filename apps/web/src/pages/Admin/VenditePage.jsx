@@ -1,294 +1,245 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Home, FileClock, Receipt, Users, Package, Layers, ArrowRight } from 'lucide-react';
+import IntestazionePagina from '@/components/aree/IntestazionePagina';
+import Contatore from '@/components/aree/Contatore';
+import NotaMockup from '@/components/NotaMockup';
+import { BarreConPiano } from '@/components/admin/direzione/Grafici';
+import { ChipProdotto, Riquadro } from '@/components/admin/direzione/Elementi';
+import { useTutteLePratiche } from '@/lib/praticheDemo';
+import { useTutteLeVerifiche } from '@/lib/verificheDemo';
+import { useTutteLeAutocandidature } from '@/lib/autocandidatureDemo';
+import { useTuttiICertificati } from '@/lib/certificatiDemo';
+import { PRODOTTI, PRODOTTI_PROPRIETARIO, PARAMETRI, fmtEuro, nomeProdotto, prezzoProdotto } from '@/data/catalogo';
+import { ALIQUOTE_PROVVIGIONE, COMMISSIONE_MEDIA_PIANO, COMPOSIZIONE_PIANO } from '@/data/direzione';
+import { OGGI } from '@/data/datiDemo';
+import { fmtData, nomeMese } from '@/lib/formato';
 import {
-    Search, ChevronUp, ChevronDown, ArrowUpRight,
-    ShoppingCart, Euro, TrendingUp, Calendar
-} from 'lucide-react';
+    DODICI_MESI_FA, MESE_OGGI, portafoglio, praticheInCorso, composizionePortafoglio, commissioneMediaPonderata,
+    elencoVendite, abbonamentiPerProdotto, unaTantum, perCanale, canaleDi, valoreAnnuo, quota, fmtPercentuale,
+} from '@/lib/aggregati';
 
-// ─── Dati mock ─────────────────────────────────────────────────────────────────
-const VENDITE = [
-    { id: 1, data: '2026-04-01', cliente: 'Marco Bianchi', clienteId: 1, prodotto: 'CRIA Gestione', categoriaId: 'A', commerciale: 'Luca Verdi', codiceRef: 'REF-001', importo: 299, metodo: 'Stripe', stato: 'pagato' },
-    { id: 2, data: '2026-04-02', cliente: 'Sara Conti', clienteId: 2, prodotto: 'CRIA Completo', categoriaId: 'B', commerciale: 'Sara Galli', codiceRef: 'REF-002', importo: 499, metodo: 'Bonifico', stato: 'in attesa' },
-    { id: 3, data: '2026-04-03', cliente: 'Luca Ferrari', clienteId: 3, prodotto: 'CRIA Verifica', categoriaId: 'C', commerciale: 'Marco Fontana', codiceRef: 'REF-003', importo: 49, metodo: 'Stripe', stato: 'pagato' },
-    { id: 4, data: '2026-04-05', cliente: 'Giulia Neri', clienteId: 4, prodotto: 'CRIA Gestione', categoriaId: 'A', commerciale: 'Luca Verdi', codiceRef: 'REF-001', importo: 299, metodo: 'Stripe', stato: 'pagato' },
-    { id: 5, data: '2026-04-08', cliente: 'Roberto Fabbri', clienteId: 5, prodotto: 'CRIA Completo', categoriaId: 'B', commerciale: null, codiceRef: null, importo: 499, metodo: 'Bonifico', stato: 'in attesa' },
-    { id: 6, data: '2026-04-10', cliente: 'Chiara Lombardi', clienteId: 6, prodotto: 'CRIA Verifica', categoriaId: 'C', commerciale: 'Sara Galli', codiceRef: 'REF-002', importo: 49, metodo: 'Stripe', stato: 'pagato' },
-    { id: 7, data: '2026-03-05', cliente: 'Davide Ricci', clienteId: 7, prodotto: 'CRIA Gestione', categoriaId: 'A', commerciale: 'Marco Fontana', codiceRef: 'REF-003', importo: 299, metodo: 'Stripe', stato: 'pagato' },
-    { id: 8, data: '2026-03-10', cliente: 'Elena Vitali', clienteId: 8, prodotto: 'CRIA Completo', categoriaId: 'B', commerciale: 'Luca Verdi', codiceRef: 'REF-001', importo: 499, metodo: 'Bonifico', stato: 'pagato' },
-    { id: 9, data: '2026-03-15', cliente: 'Fabio Colombo', clienteId: 9, prodotto: 'CRIA Verifica', categoriaId: 'C', commerciale: null, codiceRef: null, importo: 49, metodo: 'Stripe', stato: 'pagato' },
-    { id: 10, data: '2026-03-20', cliente: 'Anna Russo', clienteId: 10, prodotto: 'CRIA Gestione', categoriaId: 'A', commerciale: 'Sara Galli', codiceRef: 'REF-002', importo: 299, metodo: 'Stripe', stato: 'annullato' },
-    { id: 11, data: '2026-03-22', cliente: 'Paolo Gallo', clienteId: 11, prodotto: 'CRIA Completo', categoriaId: 'B', commerciale: 'Marco Fontana', codiceRef: 'REF-003', importo: 499, metodo: 'Bonifico', stato: 'pagato' },
-    { id: 12, data: '2026-03-28', cliente: 'Marta Greco', clienteId: 12, prodotto: 'CRIA Verifica', categoriaId: 'C', commerciale: 'Luca Verdi', codiceRef: 'REF-001', importo: 49, metodo: 'Stripe', stato: 'pagato' },
-    { id: 13, data: '2026-02-10', cliente: 'Stefano Bruno', clienteId: 13, prodotto: 'CRIA Gestione', categoriaId: 'A', commerciale: null, codiceRef: null, importo: 299, metodo: 'Stripe', stato: 'pagato' },
-    { id: 14, data: '2026-02-18', cliente: 'Giorgio Esposito', clienteId: 14, prodotto: 'CRIA Completo', categoriaId: 'B', commerciale: 'Sara Galli', codiceRef: 'REF-002', importo: 499, metodo: 'Bonifico', stato: 'pagato' },
-    { id: 15, data: '2026-02-25', cliente: 'Marco Bianchi', clienteId: 1, prodotto: 'CRIA Verifica', categoriaId: 'C', commerciale: 'Luca Verdi', codiceRef: 'REF-001', importo: 49, metodo: 'Stripe', stato: 'pagato' },
-];
+// ═════════════════════════════════════════════════════════════════════════════
+// VENDITE — O-25
+// Quello che si è venduto, riallineato al catalogo: i prodotti con i loro codici
+// e nomi, i prezzi calcolati dal listino. Le vendite sono i fatti dei dati
+// condivisi — contratti attivi, pratiche con quota e prezzo, CRIA Verifica,
+// autocandidature — con il canale da cui arrivano: il codice referente del
+// commerciale, legato al cliente per sempre, oppure la vendita diretta.
+// Solo numeri, per prodotto e per canale: il registro delle vendite con i nomi
+// dei clienti è stato tolto (22 settembre 2026).
+// Il P4 aspetta la decisione del titolare: qui non ha prezzi né vendite.
+// ═════════════════════════════════════════════════════════════════════════════
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-const STATO_BADGE = {
-    'pagato': 'bg-green-100 text-green-800',
-    'in attesa': 'bg-yellow-100 text-yellow-800',
-    'annullato': 'bg-red-100 text-red-800',
+const euro = (n) => fmtEuro(n, Number.isInteger(n) ? 0 : 2);
+
+const testoCanale = (c) => {
+    if (c.tipo === 'diretto') return 'Diretto';
+    if (c.tipo === 'referente') return `${c.commerciale} · ${c.codice}`;
+    return `Codice ${c.codice} non riconosciuto`;
 };
 
-const METODO_BADGE = {
-    'Stripe': 'bg-purple-100 text-purple-800',
-    'Bonifico': 'bg-blue-100 text-blue-800',
-};
-
-const PRODOTTO_BADGE = {
-    'A': 'bg-blue-100 text-blue-800',
-    'B': 'bg-purple-100 text-purple-800',
-    'C': 'bg-amber-100 text-amber-800',
-};
-
-const fmt = (d) => new Date(d).toLocaleDateString('it-IT');
-const fmtEur = (n) => `€ ${n.toLocaleString('it-IT')}`;
-
-const MESE_CORRENTE = '2026-04';
-
-const StatBox = ({ label, value, icon: Icon, color }) => (
-    <Card>
-        <CardContent className="pt-5 pb-4 flex items-center gap-4">
-            <div className={`p-2.5 rounded-lg ${color}`}>
-                <Icon className="w-5 h-5 text-white" />
-            </div>
-            <div>
-                <p className="text-xl font-bold tabular-nums text-foreground">{value}</p>
-                <p className="text-sm text-muted-foreground">{label}</p>
-            </div>
-        </CardContent>
-    </Card>
+// ─── Per prodotto ─────────────────────────────────────────────────────────────
+const TestaProdotto = ({ codice }) => (
+    <div className="flex items-start gap-2 min-w-0">
+        <ChipProdotto codice={codice} />
+        <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">{nomeProdotto(codice)}</p>
+            <p className="text-xs text-muted-foreground">{prezzoProdotto(codice)}</p>
+        </div>
+    </div>
 );
 
-// ─── Componente ────────────────────────────────────────────────────────────────
+const Numero = ({ etichetta, children, className = '' }) => (
+    <div className={`text-sm ${className}`}>
+        <p className="text-[11px] text-muted-foreground lg:hidden">{etichetta}</p>
+        <p className="tabular-nums text-foreground">{children}</p>
+    </div>
+);
+
+const RigheAbbonamenti = ({ righe }) => (
+    <div className="divide-y divide-border">
+        <div className="hidden lg:grid lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] gap-4 pb-2 text-xs font-medium text-muted-foreground">
+            <span>Sul contratto</span><span className="text-right">Contratti attivi</span><span className="text-right">In arrivo</span><span className="text-right">Valore annuo</span>
+        </div>
+        {righe.map(r => (
+            <div key={r.codice} className="py-3 grid grid-cols-3 gap-3 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] lg:gap-4 lg:items-center">
+                <div className="col-span-3 lg:col-span-1"><TestaProdotto codice={r.codice} /></div>
+                <Numero etichetta="Contratti attivi" className="lg:text-right">{r.attivi}</Numero>
+                <Numero etichetta="In arrivo" className="lg:text-right">{r.inCorso ? `${r.inCorso} · ${euro(r.valoreAtteso)} l’anno` : '—'}</Numero>
+                <Numero etichetta="Valore annuo" className="lg:text-right">{euro(r.valoreAnnuo)}</Numero>
+            </div>
+        ))}
+    </div>
+);
+
+const RigaUnaTantum = ({ testa, n, incassato, nota }) => (
+    <div className="py-3 grid grid-cols-3 gap-3 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] lg:gap-4 lg:items-center">
+        <div className="col-span-3 lg:col-span-1">{testa}</div>
+        <Numero etichetta="Vendute" className="lg:text-right">{n}</Numero>
+        <Numero etichetta="Incassato" className="lg:text-right">{euro(incassato)}</Numero>
+        <div className="col-span-3 lg:col-span-1 text-xs text-muted-foreground lg:text-right">{nota}</div>
+    </div>
+);
+
+// ═════════════════════════════════════════════════════════════════════════════
 const VenditePage = () => {
-    const [search, setSearch] = useState('');
-    const [filtroProdotto, setProd] = useState('tutti');
-    const [filtroStato, setStato] = useState('tutti');
-    const [filtroMetodo, setMetodo] = useState('tutti');
-    const [filtroDa, setDa] = useState('');
-    const [filtroA, setA] = useState('');
-    const [sortField, setSortField] = useState('data');
-    const [sortDir, setSortDir] = useState('desc');
+    const pratiche = useTutteLePratiche();
+    const verifiche = useTutteLeVerifiche();
+    const autocandidature = useTutteLeAutocandidature();
+    const certificati = useTuttiICertificati();
 
-    const contatori = useMemo(() => {
-        const pagate = VENDITE.filter(v => v.stato === 'pagato');
-        const questeMese = VENDITE.filter(v => v.data.startsWith(MESE_CORRENTE));
-        const questeMesePagate = questeMese.filter(v => v.stato === 'pagato');
+    const dati = useMemo(() => {
+        const voci = portafoglio(pratiche);
+        const inCorso = praticheInCorso(pratiche);
+        const vendite = elencoVendite({ pratiche, verifiche, autocandidature });
+        const delMese = vendite.filter(v => v.conta && v.data.startsWith(MESE_OGGI));
+        const conCodice = voci.filter(v => canaleDi(v.clienteId, v.codiceReferente).tipo === 'referente').length;
+        const composizione = composizionePortafoglio(voci);
+        const conApp = voci.filter(v => PRODOTTI[v.prodotto].quotaAppAnnua || PRODOTTI[v.prodotto].prezzoAnnuo != null).length;
         return {
-            totale: VENDITE.length,
-            questeMese: questeMese.length,
-            valoreTotale: pagate.reduce((s, v) => s + v.importo, 0),
-            valoreQuesteMese: questeMesePagate.reduce((s, v) => s + v.importo, 0),
+            voci, inCorso, delMese, conCodice, composizione, conApp,
+            valorePortafoglio: voci.reduce((t, v) => t + valoreAnnuo(v.prodotto, v.canone), 0),
+            valoreInArrivo: inCorso.reduce((t, p) => t + valoreAnnuo(p.prodotto, p.canone), 0),
+            abbonamenti: abbonamentiPerProdotto(voci, inCorso),
+            unaTantum: unaTantum(vendite, DODICI_MESI_FA),
+            canali: perCanale(vendite, voci),
+            certificatiGratuiti: certificati.filter(c => c.fonte === 'rilevato_cria' && c.emessoIl >= DODICI_MESI_FA).length,
         };
-    }, []);
+    }, [pratiche, verifiche, autocandidature, certificati]);
 
-    const filtered = useMemo(() => {
-        let list = [...VENDITE];
-        if (search.trim()) {
-            const q = search.toLowerCase();
-            list = list.filter(v =>
-                v.cliente.toLowerCase().includes(q) ||
-                (v.commerciale && v.commerciale.toLowerCase().includes(q)) ||
-                (v.codiceRef && v.codiceRef.toLowerCase().includes(q))
-            );
-        }
-        if (filtroProdotto !== 'tutti') list = list.filter(v => v.prodotto === filtroProdotto);
-        if (filtroStato !== 'tutti') list = list.filter(v => v.stato === filtroStato);
-        if (filtroMetodo !== 'tutti') list = list.filter(v => v.metodo === filtroMetodo);
-        if (filtroDa) list = list.filter(v => v.data >= filtroDa);
-        if (filtroA) list = list.filter(v => v.data <= filtroA);
-
-        list.sort((a, b) => {
-            let va = a[sortField] ?? '', vb = b[sortField] ?? '';
-            if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
-            if (va < vb) return sortDir === 'asc' ? -1 : 1;
-            if (va > vb) return sortDir === 'asc' ? 1 : -1;
-            return 0;
-        });
-        return list;
-    }, [search, filtroProdotto, filtroStato, filtroMetodo, filtroDa, filtroA, sortField, sortDir]);
-
-    const toggleSort = (field) => {
-        if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-        else { setSortField(field); setSortDir('asc'); }
-    };
-
-    const SortIcon = ({ field }) => sortField !== field
-        ? <ChevronUp className="w-3.5 h-3.5 opacity-20" />
-        : sortDir === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />;
-
-    const Th = ({ label, field }) => (
-        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none hover:text-foreground"
-            onClick={() => toggleSort(field)}>
-            <span className="flex items-center gap-1">{label}<SortIcon field={field} /></span>
-        </th>
-    );
-
-    const hasFilters = search || filtroProdotto !== 'tutti' || filtroStato !== 'tutti' || filtroMetodo !== 'tutti' || filtroDa || filtroA;
-    const prodottiUnici = [...new Set(VENDITE.map(v => v.prodotto))];
+    const pianoApp = PRODOTTI_PROPRIETARIO
+        .filter(c => PRODOTTI[c].quotaAppAnnua || PRODOTTI[c].prezzoAnnuo != null)
+        .reduce((t, c) => t + COMPOSIZIONE_PIANO[c], 0) / 100;
 
     return (
         <>
-            <Helmet><title>Vendite - CRIA Admin</title></Helmet>
+            <Helmet><title>Vendite - CRIA</title></Helmet>
 
             <div className="space-y-6">
+                <IntestazionePagina
+                    titolo="Vendite"
+                    sottotitolo="Cosa si è venduto, prodotto per prodotto. Nomi e prezzi vengono dal listino; su ogni contratto vale il prezzo congelato al pagamento."
+                />
 
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground mb-1">Vendite</h1>
-                    <p className="text-sm text-muted-foreground">Storico di tutte le vendite dei prodotti CRIA</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <Contatore icona={Home} colore="bg-[#1A2D52]" etichetta="Contratti attivi" valore={dati.voci.length}
+                        nota={`Valore annuo ${euro(dati.valorePortafoglio)}`} />
+                    <Contatore icona={FileClock} colore="bg-blue-500" etichetta="Pratiche in corso" valore={dati.inCorso.length}
+                        nota={`Quota pagata · ${euro(dati.valoreInArrivo)} l’anno in arrivo`} />
+                    <Contatore icona={Receipt} colore="bg-emerald-600" etichetta={`Incassato a ${nomeMese(MESE_OGGI).toLowerCase()}`}
+                        valore={euro(dati.delMese.reduce((t, v) => t + v.incassato, 0))}
+                        nota={`${dati.delMese.length} vendite al ${fmtData(OGGI)}`} />
+                    <Contatore icona={Users} colore="bg-amber-500" etichetta="Contratti portati da un commerciale"
+                        valore={`${dati.conCodice} su ${dati.voci.length}`}
+                        nota="Con il codice referente legato al cliente" />
                 </div>
 
-                {/* Contatori */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatBox label="Totale vendite" value={contatori.totale} icon={ShoppingCart} color="bg-blue-500" />
-                    <StatBox label="Valore totale" value={fmtEur(contatori.valoreTotale)} icon={Euro} color="bg-green-500" />
-                    <StatBox label="Vendite questo mese" value={contatori.questeMese} icon={Calendar} color="bg-purple-500" />
-                    <StatBox label="Valore questo mese" value={fmtEur(contatori.valoreQuesteMese)} icon={TrendingUp} color="bg-amber-500" />
+                <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+                    <Riquadro className="xl:col-span-3" icona={Package} titolo="Per prodotto"
+                        sottotitolo="Il valore annuo è il prezzo del listino sul canone di ogni contratto: commissione più quota dell’app, dove c’è.">
+                        <RigheAbbonamenti righe={dati.abbonamenti} />
+
+                        <div className="mt-5 hidden lg:grid lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] gap-4 pb-2 border-b border-border text-xs font-medium text-muted-foreground">
+                            <span>Una tantum · ultimi 12 mesi</span><span className="text-right">Vendute</span><span className="text-right">Incassato</span><span />
+                        </div>
+                        <p className="mt-5 pb-1 text-xs font-medium text-muted-foreground lg:hidden">Una tantum · ultimi 12 mesi</p>
+                        <div className="divide-y divide-border">
+                            <RigaUnaTantum
+                                testa={(
+                                    <div>
+                                        <p className="text-sm font-medium text-foreground">Quota di iscrizione</p>
+                                        <p className="text-xs text-muted-foreground">{fmtEuro(PARAMETRI.quotaIscrizione)} a pratica, all’avvio</p>
+                                    </div>
+                                )}
+                                {...dati.unaTantum.quota}
+                                nota="Si paga prima della verifica di CRIA" />
+                            <RigaUnaTantum testa={<TestaProdotto codice="P3" />} {...dati.unaTantum.P3}
+                                nota={`Diventa un credito per ${PRODOTTI.P3.scalabileEntroGiorni} giorni`} />
+                            <RigaUnaTantum testa={<TestaProdotto codice="P7" />} {...dati.unaTantum.P7}
+                                nota={`Più ${dati.certificatiGratuiti} certificati gratuiti a chi ha un contratto CRIA: non sono vendite`} />
+                            <div className="py-3 flex items-start gap-3">
+                                <TestaProdotto codice="P6" />
+                                <p className="ml-auto text-xs text-muted-foreground text-right max-w-[16rem]">Nessuna vendita finché non si decidono gli scaglioni</p>
+                            </div>
+                        </div>
+                        <p className="mt-3 text-xs text-muted-foreground">
+                            La Consulenza (P4) non è nel listino: aspetta la decisione del titolare, e qui non ha prezzi né vendite.
+                        </p>
+                    </Riquadro>
+
+                    <Riquadro className="xl:col-span-2" icona={Layers} titolo="Composizione del portafoglio"
+                        sottotitolo="Quanti contratti per prodotto, accanto alle quote del piano economico.">
+                        <BarreConPiano
+                            formato={(x) => fmtPercentuale(x)}
+                            righe={dati.composizione.map(r => ({ chiave: r.codice, etichetta: `${r.codice} · ${nomeProdotto(r.codice)} (${r.n})`, valore: r.quota ?? 0, piano: r.piano }))}
+                        />
+                        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-border pt-4">
+                            <div>
+                                <p className="text-xs text-muted-foreground">Commissione media ponderata</p>
+                                <p className="text-lg font-semibold text-foreground">{fmtPercentuale(commissioneMediaPonderata(dati.voci), 1)}</p>
+                                <p className="text-xs text-muted-foreground">Piano {String(COMMISSIONE_MEDIA_PIANO).replace('.', ',')}%</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Pagano la quota dell’app</p>
+                                <p className="text-lg font-semibold text-foreground">{fmtPercentuale(quota(dati.conApp, dati.voci.length))}</p>
+                                <p className="text-xs text-muted-foreground">Piano {fmtPercentuale(pianoApp)} · col P2 è inclusa</p>
+                            </div>
+                        </div>
+                        <p className="mt-4 text-xs text-muted-foreground">
+                            Con {dati.voci.length} contratti ogni contratto sposta la composizione di molti punti: il confronto col piano diventa leggibile con il portafoglio vero.
+                        </p>
+                    </Riquadro>
                 </div>
 
-                {/* Filtri */}
-                <Card>
-                    <CardContent className="pt-4 pb-4">
-                        <div className="flex flex-wrap gap-3 items-end">
-                            <div className="relative flex-1 min-w-48">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Cerca cliente o commerciale..."
-                                    value={search}
-                                    onChange={e => setSearch(e.target.value)}
-                                    style={{ paddingLeft: '2.5rem' }}
-                                />
-                            </div>
-                            <Select value={filtroProdotto} onValueChange={setProd}>
-                                <SelectTrigger className="w-44"><SelectValue placeholder="Prodotto" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="tutti">Tutti i prodotti</SelectItem>
-                                    {prodottiUnici.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={filtroMetodo} onValueChange={setMetodo}>
-                                <SelectTrigger className="w-36"><SelectValue placeholder="Metodo" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="tutti">Tutti</SelectItem>
-                                    <SelectItem value="Stripe">Stripe</SelectItem>
-                                    <SelectItem value="Bonifico">Bonifico</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Select value={filtroStato} onValueChange={setStato}>
-                                <SelectTrigger className="w-36"><SelectValue placeholder="Stato" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="tutti">Tutti gli stati</SelectItem>
-                                    <SelectItem value="pagato">Pagato</SelectItem>
-                                    <SelectItem value="in attesa">In attesa</SelectItem>
-                                    <SelectItem value="annullato">Annullato</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-muted-foreground px-1">Dal</span>
-                                <Input type="date" value={filtroDa} onChange={e => setDa(e.target.value)} className="w-36" />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-muted-foreground px-1">Al</span>
-                                <Input type="date" value={filtroA} onChange={e => setA(e.target.value)} className="w-36" />
-                            </div>
-                            {hasFilters && (
-                                <Button variant="ghost" size="sm"
-                                    onClick={() => { setSearch(''); setProd('tutti'); setStato('tutti'); setMetodo('tutti'); setDa(''); setA(''); }}>
-                                    Azzera filtri
-                                </Button>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                <Riquadro icona={Users} titolo="Per canale"
+                    sottotitolo="Il codice referente si lega al cliente quando si registra, per sempre: ogni vendita a quel cliente è del commerciale che l’ha portato.">
+                    <div className="hidden lg:grid lg:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))] gap-4 pb-2 border-b border-border text-xs font-medium text-muted-foreground">
+                        <span>Canale</span><span className="text-right">Clienti</span><span className="text-right">Contratti attivi</span>
+                        <span className="text-right">Valore annuo</span><span className="text-right">Provvigioni maturate</span>
+                    </div>
+                    <ul className="divide-y divide-border">
+                        {dati.canali.map(c => (
+                            <li key={c.chiave} className="py-3 grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))] lg:gap-4 lg:items-start">
+                                <div className="col-span-2 lg:col-span-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground">{c.tipo === 'diretto' ? 'Vendite dirette' : c.tipo === 'referente' ? c.commerciale : testoCanale(c)}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {c.tipo === 'diretto' ? 'Senza codice referente' : c.codice}
+                                        {c.chiusoIl && ` · codice chiuso il ${fmtData(c.chiusoIl)}`}
+                                    </p>
+                                </div>
+                                <Numero etichetta="Clienti" className="lg:text-right">{c.clienti}</Numero>
+                                <Numero etichetta="Contratti attivi" className="lg:text-right">{c.contratti}</Numero>
+                                <Numero etichetta="Valore annuo" className="lg:text-right">{euro(c.valoreAnnuo)}</Numero>
+                                <div className="text-sm lg:text-right">
+                                    <p className="text-[11px] text-muted-foreground lg:hidden">Provvigioni maturate</p>
+                                    <p className="tabular-nums text-foreground">{c.tipo === 'diretto' ? '—' : euro(c.provvigioni)}</p>
+                                    {c.senzaAliquota > 0 && <p className="text-xs text-muted-foreground">{c.senzaAliquota} {c.senzaAliquota === 1 ? 'vendita' : 'vendite'} senza aliquota</p>}
+                                    {c.dopoLaChiusura > 0 && <p className="text-xs text-muted-foreground">{c.dopoLaChiusura} dopo la chiusura del codice</p>}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="mt-3 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                        <p className="max-w-3xl">
+                            La provvigione è una quota del valore del primo anno, con le aliquote di Impostazioni:{' '}
+                            {Object.entries(ALIQUOTE_PROVVIGIONE).map(([c, a]) => `${a}% ${c}`).join(', ')}.
+                            P1E, P5 e P7 un’aliquota non ce l’hanno ancora.
+                        </p>
+                        <Link to="/dashboard/admin/provvigioni" className="inline-flex items-center gap-1 font-medium text-foreground hover:underline">
+                            Pagamenti in Provvigioni <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                    </div>
+                </Riquadro>
 
-                {/* Tabella */}
-                <Card>
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="border-b border-border bg-muted/40">
-                                    <tr>
-                                        <Th label="Data" field="data" />
-                                        <Th label="Cliente" field="cliente" />
-                                        <Th label="Prodotto" field="prodotto" />
-                                        <Th label="Commerciale" field="commerciale" />
-                                        <Th label="Importo" field="importo" />
-                                        <Th label="Metodo" field="metodo" />
-                                        <Th label="Stato" field="stato" />
-                                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Cliente</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border">
-                                    {filtered.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
-                                                Nessuna vendita trovata con i filtri selezionati.
-                                            </td>
-                                        </tr>
-                                    ) : filtered.map((v) => (
-                                        <tr key={v.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3 text-muted-foreground tabular-nums">{fmt(v.data)}</td>
-                                            <td className="px-4 py-3 font-medium text-foreground">{v.cliente}</td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRODOTTO_BADGE[v.categoriaId]}`}>
-                                                    {v.prodotto}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {v.commerciale ? (
-                                                    <div>
-                                                        <p className="text-sm text-foreground">{v.commerciale}</p>
-                                                        <p className="text-xs text-muted-foreground tabular-nums">{v.codiceRef}</p>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-muted-foreground text-xs">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 font-semibold tabular-nums text-foreground">{fmtEur(v.importo)}</td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${METODO_BADGE[v.metodo]}`}>
-                                                    {v.metodo}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATO_BADGE[v.stato]}`}>
-                                                    {v.stato}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <Link to={`/dashboard/admin/clienti/${v.clienteId}`}>
-                                                    <Button variant="ghost" size="sm" className="gap-1.5">
-                                                        Apri <ArrowUpRight className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        {filtered.length > 0 && (
-                            <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
-                                <span>
-                                    {filtered.length === VENDITE.length
-                                        ? `${VENDITE.length} vendite totali`
-                                        : `${filtered.length} di ${VENDITE.length} vendite`}
-                                </span>
-                                <span className="font-semibold tabular-nums text-foreground">
-                                    Totale filtrato: {fmtEur(filtered.filter(v => v.stato === 'pagato').reduce((s, v) => s + v.importo, 0))}
-                                </span>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
+                <NotaMockup>
+                    <p>
+                        I codici referente e i clienti che ogni commerciale ha portato sono dati di prova del back office. Per vedere cambiare i numeri:
+                        entra come Immobiliare Verdi e firma la pratica di Via Bergamo 8 (diventa un contratto attivo), oppure come Mario Rossi paga
+                        Via Savona 22 (conta nell’incassato del mese e matura la provvigione di Sara Esposito).
+                    </p>
+                </NotaMockup>
             </div>
         </>
     );

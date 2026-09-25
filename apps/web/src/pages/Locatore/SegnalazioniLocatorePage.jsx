@@ -1,194 +1,140 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-    Flag, Search, Filter, X, CheckCircle2, XCircle,
-    AlertTriangle, Calendar, Download, Eye
-} from 'lucide-react';
+import { Download, Info, X } from 'lucide-react';
+import { toast } from 'sonner';
+import IntestazionePagina from '@/components/aree/IntestazionePagina';
+import Contatore from '@/components/aree/Contatore';
+import TabellaMesi from '@/components/aree/TabellaMesi';
+import { useDatiProprietario } from '@/hooks/useDatiArea';
+import { segnalaMese } from '@/lib/cicloFonte';
+import { PARAMETRI, PRODOTTI } from '@/data/catalogo';
+import { OGGI } from '@/data/datiDemo';
+import { nomeMese } from '@/lib/formato';
 
-const SEGNALAZIONI = [
-    { id: 1, data: '2026-04-03', mese: 'Aprile 2026', immobile: 'Via Roma 42, Milano', inquilino: 'Sofia Martini', tipo: 'pagato', esito: 'confermato', contestazione: null },
-    { id: 2, data: '2026-04-09', mese: 'Aprile 2026', immobile: 'Corso Venezia 18, Milano', inquilino: 'Luca Romano', tipo: 'non_pagato', esito: 'in_verifica', contestazione: 1 },
-    { id: 3, data: '2026-04-12', mese: 'Aprile 2026', immobile: 'Via Garibaldi 56, Torino', inquilino: 'Chiara Lombardi', tipo: 'pagato', esito: 'confermato', contestazione: null },
-    { id: 4, data: '2026-03-04', mese: 'Marzo 2026', immobile: 'Via Roma 42, Milano', inquilino: 'Sofia Martini', tipo: 'pagato', esito: 'confermato', contestazione: null },
-    { id: 5, data: '2026-03-12', mese: 'Marzo 2026', immobile: 'Corso Venezia 18, Milano', inquilino: 'Luca Romano', tipo: 'non_pagato', esito: 'risolto', contestazione: 1 },
-    { id: 6, data: '2026-02-05', mese: 'Febbraio 2026', immobile: 'Via Roma 42, Milano', inquilino: 'Sofia Martini', tipo: 'pagato', esito: 'confermato', contestazione: null },
-    { id: 7, data: '2026-01-15', mese: 'Gennaio 2026', immobile: 'Corso Venezia 18, Milano', inquilino: 'Luca Romano', tipo: 'non_pagato', esito: 'risolto', contestazione: 2 },
-];
+// P-12 — Segnalazioni: i tre esiti del mese e cosa comportano.
 
-const fmtData = (iso) => new Date(iso).toLocaleDateString('it-IT');
+// Il mese che aspetta una risposta: quello in corso, sui contratti dove
+// incassa il proprietario, finché nessuno ha detto se il canone è arrivato.
+const MESE_IN_CORSO = OGGI.slice(0, 7);
 
-const TIPO_BADGE = {
-    pagato: { label: 'Pagamento', color: 'bg-green-100 text-green-800', icon: CheckCircle2 },
-    non_pagato: { label: 'Mancato pagamento', color: 'bg-red-100 text-red-800', icon: XCircle },
+const daSegnalare = (contratti) => contratti.filter(c => PRODOTTI[c.prodotto]?.incassa === 'proprietario').map(c => {
+    const m = c.mesi.find(x => x.mese === MESE_IN_CORSO);
+    return m && (!m.segnalazione || m.stato === 'atteso') ? { c, mese: MESE_IN_CORSO } : null;
+}).filter(Boolean);
+
+const DaRispondere = ({ righe }) => {
+    const [inCorso, setInCorso] = useState(null);
+    if (!righe.length) return null;
+
+    const rispondi = async ({ c, mese }, arrivato) => {
+        setInCorso(`${c.id}-${mese}`);
+        const esito = await segnalaMese(c, mese, arrivato ? 'pagato' : 'non_pagato');
+        setInCorso(null);
+        if (esito.ok) toast.success(arrivato ? 'Segnato come arrivato' : 'Segnalato: CRIA avvisa l’inquilino e apre la pratica se serve');
+        else toast.error(esito.messaggio || 'Segnalazione non riuscita');
+    };
+
+    return (
+        <Card className="border-amber-200 bg-amber-50/60">
+            <CardHeader className="pb-3">
+                <CardTitle className="text-base">Il canone di {nomeMese(MESE_IN_CORSO).toLowerCase()} è arrivato?</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+                {righe.map(({ c, mese }) => (
+                    <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 border border-amber-200 p-3">
+                        <span className="text-sm text-foreground">{c.immobile.indirizzo} · {c.canone} €</span>
+                        <span className="flex gap-2">
+                            <Button size="sm" variant="outline" className="h-8 bg-white" disabled={inCorso} onClick={() => rispondi({ c, mese }, true)}>Sì, è arrivato</Button>
+                            <Button size="sm" variant="outline" className="h-8 bg-white" disabled={inCorso} onClick={() => rispondi({ c, mese }, false)}>No, non è arrivato</Button>
+                        </span>
+                    </div>
+                ))}
+                <p className="text-xs text-amber-900">
+                    Rispondere entro il {PARAMETRI.giornoScadenzaCanone + PARAMETRI.giorniFinestraCopertura} tiene la copertura del mese. Dopo, il mese conta lo stesso nello storico dell’inquilino, ma la copertura decade.
+                </p>
+            </CardContent>
+        </Card>
+    );
 };
 
-const ESITO_BADGE = {
-    confermato: 'bg-green-100 text-green-800',
-    in_verifica: 'bg-yellow-100 text-yellow-800',
-    risolto: 'bg-blue-100 text-blue-800',
-};
+const SegnalazioniLocatorePage = () => {
+    const { contratti } = useDatiProprietario();
+    const [fImmobile, setFImmobile] = useState('tutti');
+    const [fTipo, setFTipo] = useState('tutti');
 
-const SegnalazioniPage = () => {
-    const [search, setSearch] = useState('');
-    const [filtroTipo, setFTipo] = useState('tutti');
-    const [filtroDa, setDa] = useState('');
-    const [filtroA, setA] = useState('');
-
-    const filtrate = useMemo(() => {
-        let list = [...SEGNALAZIONI];
-        if (search.trim()) {
-            const q = search.toLowerCase();
-            list = list.filter(s => s.immobile.toLowerCase().includes(q) || s.inquilino.toLowerCase().includes(q));
-        }
-        if (filtroTipo !== 'tutti') list = list.filter(s => s.tipo === filtroTipo);
-        if (filtroDa) list = list.filter(s => s.data >= filtroDa);
-        if (filtroA) list = list.filter(s => s.data <= filtroA);
-        return list.sort((a, b) => b.data.localeCompare(a.data));
-    }, [search, filtroTipo, filtroDa, filtroA]);
-
-    const contatori = useMemo(() => ({
-        totali: SEGNALAZIONI.length,
-        pagati: SEGNALAZIONI.filter(s => s.tipo === 'pagato').length,
-        nonPagati: SEGNALAZIONI.filter(s => s.tipo === 'non_pagato').length,
-        contestate: SEGNALAZIONI.filter(s => s.contestazione !== null).length,
-    }), []);
-
-    const hasFilters = search || filtroTipo !== 'tutti' || filtroDa || filtroA;
+    const tutti = useMemo(() => contratti.flatMap(c => c.mesi.map(m => ({ ...m, contrattoId: c.id, immobile: c.immobile.indirizzo }))), [contratti]);
+    const filtrati = tutti.filter(m => (fImmobile === 'tutti' || m.contrattoId === fImmobile) && (fTipo === 'tutti' || m.segnalazione.tipo === fTipo));
+    const conta = (tipo) => tutti.filter(m => m.segnalazione.tipo === tipo).length;
+    const finestra = PARAMETRI.giornoScadenzaCanone + PARAMETRI.giorniFinestraCopertura;
 
     return (
         <>
             <Helmet><title>Segnalazioni - CRIA</title></Helmet>
+            <div className="space-y-6">
+                <IntestazionePagina
+                    titolo="Segnalazioni"
+                    sottotitolo="Ogni mese, per ogni contratto: cosa è stato segnalato e come conta"
+                    azioni={<Button variant="outline" size="sm" className="gap-2" onClick={() => toast.info('Esportazione disponibile con il collegamento al backend')}><Download className="w-4 h-4" /> Esporta CSV</Button>}
+                />
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-
-                <div className="flex items-start justify-between flex-wrap gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground mb-1">Segnalazioni</h1>
-                        <p className="text-sm text-muted-foreground">Storico delle tue segnalazioni di pagamento</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <Download className="w-4 h-4" /> Esporta CSV
-                    </Button>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {[
-                        { label: 'Totali', value: contatori.totali, color: 'bg-blue-500' },
-                        { label: 'Pagamenti', value: contatori.pagati, color: 'bg-green-500' },
-                        { label: 'Mancati pagamenti', value: contatori.nonPagati, color: 'bg-red-500' },
-                        { label: 'Contestate', value: contatori.contestate, color: 'bg-amber-500' },
-                    ].map(({ label, value, color }) => (
-                        <Card key={label}>
-                            <CardContent className="pt-5 pb-4 flex items-center gap-3">
-                                <div className={`w-3 h-3 rounded-full ${color} flex-shrink-0`} />
-                                <div>
-                                    <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
-                                    <p className="text-xs text-muted-foreground">{label}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                    <Contatore etichetta="Pagato" valore={conta('pagato')} colore="bg-green-500" />
+                    <Contatore etichetta="Non pagato" valore={conta('non_pagato')} colore="bg-red-500" />
+                    <Contatore etichetta="Non rilevato" valore={conta('non_rilevato')} colore="bg-gray-400" />
+                    <Contatore etichetta="Contestate" valore={tutti.filter(m => m.contestazioneId).length} colore="bg-amber-500" />
                 </div>
 
                 <Card>
+                    <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Info className="w-5 h-5" /> Come funziona la segnalazione</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 text-sm">
+                            <div className="p-3 rounded-lg border border-green-200 bg-green-50">
+                                <p className="font-medium text-green-900">Segnali il mancato pagamento entro il {finestra}</p>
+                                <p className="text-green-800 text-xs mt-1">Il mese conta come non pagato e la copertura è attiva: la pratica di morosità parte subito.</p>
+                            </div>
+                            <div className="p-3 rounded-lg border border-orange-200 bg-orange-50">
+                                <p className="font-medium text-orange-900">Lo segnali dopo il {finestra}</p>
+                                <p className="text-orange-800 text-xs mt-1">Il mese conta comunque come non pagato, perché è la verità sull’inquilino, ma la copertura di quel mese decade.</p>
+                            </div>
+                            <div className="p-3 rounded-lg border border-gray-200 bg-gray-50">
+                                <p className="font-medium text-gray-900">Non segnali nulla entro l’{PARAMETRI.giornoChiusuraMese}</p>
+                                <p className="text-gray-700 text-xs mt-1">Il mese diventa non rilevato: non conta nel semaforo e la copertura decade.</p>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Prima della scadenza ricevi tre promemoria: {PARAMETRI.solleciti.join(', ')}. Con CRIA Completo segnala CRIA, che incassa il canone. Con CRIA Segnalazione non c’è copertura: la segnalazione serve allo storico.
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
                     <CardContent className="pt-4 pb-4">
-                        <div className="flex flex-wrap gap-3 items-end">
-                            <div className="relative flex-1 min-w-48">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input placeholder="Cerca immobile o inquilino..."
-                                    value={search} onChange={e => setSearch(e.target.value)}
-                                    style={{ paddingLeft: '2.5rem' }} />
-                            </div>
-                            <select value={filtroTipo} onChange={e => setFTipo(e.target.value)}
-                                className="text-sm border border-border rounded-lg px-3 py-2 bg-background">
-                                <option value="tutti">Tutti i tipi</option>
-                                <option value="pagato">Solo pagamenti</option>
-                                <option value="non_pagato">Solo mancati pagamenti</option>
+                        <div className="flex flex-wrap gap-3 items-center">
+                            <select value={fImmobile} onChange={e => setFImmobile(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-2 bg-background">
+                                <option value="tutti">Tutti gli immobili</option>
+                                {contratti.map(c => <option key={c.id} value={c.id}>{c.immobile.indirizzo}</option>)}
                             </select>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-muted-foreground px-1">Dal</span>
-                                <Input type="date" value={filtroDa} onChange={e => setDa(e.target.value)} className="w-36" />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-muted-foreground px-1">Al</span>
-                                <Input type="date" value={filtroA} onChange={e => setA(e.target.value)} className="w-36" />
-                            </div>
-                            {hasFilters && (
-                                <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFTipo('tutti'); setDa(''); setA(''); }}>
-                                    <X className="w-3.5 h-3.5 mr-1" /> Azzera
-                                </Button>
+                            <select value={fTipo} onChange={e => setFTipo(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-2 bg-background">
+                                <option value="tutti">Tutte le segnalazioni</option>
+                                <option value="pagato">Pagato</option>
+                                <option value="non_pagato">Non pagato</option>
+                                <option value="non_rilevato">Non rilevato</option>
+                            </select>
+                            {(fImmobile !== 'tutti' || fTipo !== 'tutti') && (
+                                <Button variant="ghost" size="sm" onClick={() => { setFImmobile('tutti'); setFTipo('tutti'); }}><X className="w-3.5 h-3.5 mr-1" /> Azzera</Button>
                             )}
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardContent className="p-0">
-                        {filtrate.length === 0 ? (
-                            <div className="py-16 text-center">
-                                <Flag className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-                                <p className="text-sm text-muted-foreground">Nessuna segnalazione trovata</p>
-                            </div>
-                        ) : (
-                            <table className="w-full text-sm">
-                                <thead className="border-b border-border bg-muted/40">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Data</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Immobile</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Inquilino</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Mese</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Tipo</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Esito</th>
-                                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border">
-                                    {filtrate.map(s => {
-                                        const tcfg = TIPO_BADGE[s.tipo];
-                                        const Icon = tcfg.icon;
-                                        return (
-                                            <tr key={s.id} className="hover:bg-muted/30">
-                                                <td className="px-4 py-3 text-muted-foreground tabular-nums">{fmtData(s.data)}</td>
-                                                <td className="px-4 py-3">
-                                                    <p className="font-medium text-foreground text-xs">{s.immobile}</p>
-                                                </td>
-                                                <td className="px-4 py-3 text-muted-foreground">{s.inquilino}</td>
-                                                <td className="px-4 py-3 text-muted-foreground">{s.mese}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${tcfg.color}`}>
-                                                        <Icon className="w-3 h-3" /> {tcfg.label}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ESITO_BADGE[s.esito] || 'bg-gray-100'}`}>
-                                                        {s.esito.replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    {s.contestazione && (
-                                                        <Link to={`/dashboard/locatore/contestazioni/${s.contestazione}`}>
-                                                            <Button variant="ghost" size="sm" className="gap-1 text-red-600">
-                                                                <AlertTriangle className="w-3.5 h-3.5" /> Contestaz.
-                                                            </Button>
-                                                        </Link>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        )}
-                    </CardContent>
-                </Card>
+                <DaRispondere righe={daSegnalare(contratti)} />
 
+                <TabellaMesi mesi={filtrati} prospettiva="locatore" percorsoContestazioni="/dashboard/locatore/contestazioni" immobile />
             </div>
         </>
     );
 };
 
-export default SegnalazioniPage;
+export default SegnalazioniLocatorePage;

@@ -1,0 +1,11 @@
+# Quello che non serve a costruire il sito non va su Vercel
+.git
+.claude
+node_modules
+**/node_modules
+dist
+**/dist
+db
+*.md
+.env*
+**/.env*

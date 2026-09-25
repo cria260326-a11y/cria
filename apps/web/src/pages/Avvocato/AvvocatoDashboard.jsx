@@ -26,7 +26,7 @@ const STATS = {
 const SCADENZE_PROSSIME = [
     { id: 1, data: '2026-05-04', testo: 'Verificare documenti contestazione #2 — Marco Esposito', priorita: 'alta', ref: '/dashboard/avvocato/clienti/4' },
     { id: 2, data: '2026-05-05', testo: 'Risposta entro 48h — ticket Sofia Martini', priorita: 'alta', ref: '/dashboard/avvocato/clienti/2' },
-    { id: 3, data: '2026-05-08', testo: 'Chiusura contestazione #3 entro finestra 7 giorni', priorita: 'media', ref: '/dashboard/avvocato/clienti/5' },
+    { id: 3, data: '2026-05-08', testo: 'Decisione contestazione #3 entro 5 giorni', priorita: 'media', ref: '/dashboard/avvocato/clienti/5' },
     { id: 4, data: '2026-05-15', testo: 'Aggiornamento note pratica — Luca Romano', priorita: 'bassa', ref: '/dashboard/avvocato/clienti/3' },
 ];
 
@@ -53,8 +53,8 @@ const AvvocatoDashboard = () => {
         <>
             <Helmet><title>Dashboard - CRIA Avvocato</title></Helmet>
 
-            <div className="min-h-screen bg-background">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <div>
+                <div className="space-y-8">
 
                     {/* Intestazione */}
                     <div className="flex items-start justify-between flex-wrap gap-4">

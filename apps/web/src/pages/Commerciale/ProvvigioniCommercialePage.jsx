@@ -70,7 +70,7 @@ const ProvvigioniCommercialePage = () => {
         <>
             <Helmet><title>Provvigioni - CRIA Commerciale</title></Helmet>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <div className="space-y-6">
 
                 <div className="flex items-start justify-between flex-wrap gap-4">
                     <div>

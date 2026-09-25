@@ -8,19 +8,30 @@ import {
 
 import VetrinaHeader from '@/components/VetrinaHeader';
 import VetrinaFooter from '@/components/VetrinaFooter';
+import Ricco, { semplice } from '@/components/testi/Ricco';
+import { useT } from '@/lib/testi';
+import { useFaqPubbliche } from '@/lib/faqDemo';
+
+// I testi della pagina sono in src/testi/catalogo/supporto.js: l'admin li cambia da
+// Admin → Testi. Le domande frequenti e le loro categorie invece da Admin → FAQ.
 
 const fontHeader = `'Fraunces', 'Source Serif Pro', Georgia, serif`;
 const fontBody = `'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
 const fontMono = `'JetBrains Mono', 'SF Mono', monospace`;
 const fontSettingsSoft = "'SOFT' 50, 'opsz' 144";
 
+// Le parti *in evidenza* dei titoli: il corsivo, colorato o del colore del titolo.
+const corsivo = (colore) => (s) => <span className="italic" style={{ color: colore }}>{s}</span>;
+const soloCorsivo = (s) => <span className="italic">{s}</span>;
+
 // ─── HERO ─────────────────────────────────────────────────────────────────────
 const Hero = () => {
+    const t = useT();
     return (
         <section className="relative pt-32 pb-12" style={{ background: '#FFFFFF' }}>
-            <div className="absolute top-32 right-0 w-1 h-72 rounded-full opacity-30" style={{ background: '#22C55E' }} />
-            <div className="absolute top-32 right-3 w-1 h-48 rounded-full opacity-30" style={{ background: '#F59E0B' }} />
-            <div className="absolute top-32 right-6 w-1 h-32 rounded-full opacity-30" style={{ background: '#EF4444' }} />
+            <div className="hidden md:block absolute top-32 right-0 w-1 h-72 rounded-full opacity-30" style={{ background: '#22C55E' }} />
+            <div className="hidden md:block absolute top-32 right-3 w-1 h-48 rounded-full opacity-30" style={{ background: '#F59E0B' }} />
+            <div className="hidden md:block absolute top-32 right-6 w-1 h-32 rounded-full opacity-30" style={{ background: '#EF4444' }} />
 
             <div className="max-w-[1100px] mx-auto px-6 lg:px-12 relative">
                 <motion.div
@@ -34,7 +45,7 @@ const Hero = () => {
                         <span className="relative inline-flex w-2 h-2 rounded-full" style={{ background: '#22C55E' }} />
                     </span>
                     <span className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: '#1A2D52', fontFamily: fontMono }}>
-                        Supporto
+                        {t('supporto.hero.occhiello')}
                     </span>
                 </motion.div>
 
@@ -52,7 +63,7 @@ const Hero = () => {
                         letterSpacing: '-0.03em',
                     }}
                 >
-                    Siamo qui <span className="italic" style={{ color: '#C97B5C' }}>per aiutarti.</span>
+                    <Ricco evidenza={corsivo('#C97B5C')}>{t('supporto.hero.titolo')}</Ricco>
                 </motion.h1>
 
                 <motion.p
@@ -62,206 +73,47 @@ const Hero = () => {
                     className="text-lg lg:text-xl max-w-2xl leading-relaxed"
                     style={{ fontFamily: fontBody, color: '#6B6B5E', fontWeight: 400 }}
                 >
-                    Cerca tra le domande frequenti qui sotto. Per parlare direttamente con noi, accedi al tuo account: la chat in dashboard è il canale più veloce.
+                    <Ricco>{t('supporto.hero.sottotitolo')}</Ricco>
                 </motion.p>
             </div>
         </section>
     );
 };
 
-// ─── FAQ — DEFINIZIONE INLINE ─────────────────────────────────────────────────
-const CATEGORIES = [
-    { id: 'tutte', label: 'Tutte' },
-    { id: 'generale', label: 'Cosa è CRIA' },
-    { id: 'prezzi', label: 'Prezzi e fatturazione' },
-    { id: 'onboarding', label: 'Iscrizione e onboarding' },
-    { id: 'locatori', label: 'Per locatori' },
-    { id: 'inquilini', label: 'Per inquilini' },
-    { id: 'verifica', label: 'Verifica inquilino' },
-    { id: 'privacy', label: 'Privacy e GDPR' },
-];
-
-const FAQS = [
-    // Generale
-    {
-        id: 'g1',
-        cat: 'generale',
-        q: 'Cosa è CRIA?',
-        a: 'CRIA è la prima centrale rischi italiana dedicata agli affitti. Aiuta locatori e agenzie a tracciare i pagamenti dei contratti, gestire le contestazioni e verificare lo storico di un potenziale inquilino. Non è una lista nera: è un sistema di fiducia trasparente in cui gli inquilini regolari traggono vantaggio dal proprio storico positivo.',
-    },
-    {
-        id: 'g2',
-        cat: 'generale',
-        q: 'Quali sono i prodotti CRIA?',
-        a: 'Tre prodotti per scenari diversi. CRIA Gestione: tracci tu i pagamenti con i nostri strumenti. CRIA Completo: gestiamo noi il rapporto con l\'inquilino e ti garantiamo il bonifico puntuale ogni mese. CRIA Verifica: verifica one-shot dello storico di un potenziale inquilino, con esito documentato in 48 ore.',
-    },
-    {
-        id: 'g3',
-        cat: 'generale',
-        q: 'CRIA è disponibile in tutta Italia?',
-        a: 'Sì, CRIA è operativo su tutto il territorio italiano. Non ci sono limitazioni geografiche: che tu abbia un immobile a Milano, Bari o in un piccolo comune, il servizio è identico.',
-    },
-
-    // Prezzi
-    {
-        id: 'p1',
-        cat: 'prezzi',
-        q: 'Quanto costa CRIA?',
-        a: 'I prezzi vengono comunicati in modo trasparente durante l\'onboarding, prima di qualsiasi pagamento. Sono pensati per essere sostenibili sia per privati con un solo immobile sia per agenzie con decine di contratti. Nessun costo nascosto, nessuna sorpresa.',
-    },
-    {
-        id: 'p2',
-        cat: 'prezzi',
-        q: 'Come avviene la fatturazione?',
-        a: 'Per CRIA Gestione e Completo la fatturazione è mensile via Stripe, con fattura elettronica automatica. Per CRIA Verifica è un pagamento singolo (one-shot), con ricevuta inviata via mail al momento dell\'acquisto.',
-    },
-    {
-        id: 'p3',
-        cat: 'prezzi',
-        q: 'Posso cambiare prodotto in seguito?',
-        a: 'Sì. Se sei attivo su CRIA Gestione e vuoi passare a Completo (o viceversa), puoi farlo dalla tua area personale. Il cambio richiede una nuova verifica documentale ma non perdi lo storico dell\'immobile né dei pagamenti registrati.',
-    },
-    {
-        id: 'p4',
-        cat: 'prezzi',
-        q: 'Posso disdire l\'abbonamento?',
-        a: 'Sì. Per CRIA Gestione e Completo non ci sono vincoli di durata: pagamento mensile, disdici quando vuoi dalla tua area personale. Per CRIA Verifica non c\'è abbonamento da disdire — paghi solo le singole verifiche che richiedi.',
-    },
-
-    // Onboarding
-    {
-        id: 'o1',
-        cat: 'onboarding',
-        q: 'Quanto tempo ci vuole per attivare CRIA?',
-        a: 'Per CRIA Gestione e Verifica, 24-48 ore dall\'invio dei documenti. Per CRIA Completo, 3-5 giorni perché serve un check più approfondito (verifica del contratto, dell\'inquilino, configurazione del piano). Ti notifichiamo a ogni passaggio via email.',
-    },
-    {
-        id: 'o2',
-        cat: 'onboarding',
-        q: 'Quali documenti servono?',
-        a: 'Documento d\'identità (fronte/retro), codice fiscale, e per i locatori anche il contratto di affitto e i documenti dell\'immobile (visura catastale, ape, ecc.). L\'onboarding ti guida passo passo indicando esattamente cosa caricare.',
-    },
-    {
-        id: 'o3',
-        cat: 'onboarding',
-        q: 'Cosa succede se mancano documenti?',
-        a: 'Niente di grave. Il nostro team ti contatta entro 24 ore indicando esattamente cosa manca. La pratica resta in stato "documenti da integrare" finché non completi il caricamento. Nessun costo aggiuntivo, nessuna penale.',
-    },
-    {
-        id: 'o4',
-        cat: 'onboarding',
-        q: 'Posso registrarmi senza ancora avere un contratto?',
-        a: 'Sì. Puoi creare il tuo account gratuitamente, esplorare la piattaforma, e procedere con l\'onboarding solo quando sei pronto. La registrazione non ti vincola a nulla.',
-    },
-
-    // locatori
-    {
-        id: 'l1',
-        cat: 'locatori',
-        q: 'Posso usare CRIA con un contratto già esistente?',
-        a: 'Certo. Sia che tu abbia un contratto in corso, sia che tu debba crearne uno nuovo, CRIA si adatta. Durante l\'onboarding indichi la tua situazione e ti guidiamo nei passaggi specifici.',
-    },
-    {
-        id: 'l2',
-        cat: 'locatori',
-        q: 'Cosa succede se l\'inquilino non paga?',
-        a: 'Dipende dal prodotto. Con CRIA Gestione, segnali tu la mancanza e si avvia la procedura di contestazione. Con CRIA Completo, ricevi comunque il bonifico puntuale ogni mese — è CRIA che gestisce il recupero crediti dall\'inquilino.',
-    },
-    {
-        id: 'l3',
-        cat: 'locatori',
-        q: 'Devo essere io a comunicare a CRIA i pagamenti?',
-        a: 'Solo con CRIA Gestione, ed è semplicissimo: clicchi "Pagato" o "Non ricevuto" sulla dashboard. Se non segnali entro l\'11 del mese, il pagamento viene considerato regolare. Con CRIA Completo è invece CRIA a incassare e tracciare tutto direttamente.',
-    },
-
-    // Inquilini
-    {
-        id: 'i1',
-        cat: 'inquilini',
-        q: 'Sono un inquilino: cosa cambia per me se il locatore usa CRIA?',
-        a: 'Hai un accesso gratuito alla tua dashboard, dove vedi le stesse informazioni che vede il locatore di te: pagamenti, segnalazioni, storico. Hai 7 giorni per contestare ogni segnalazione, e costruisci uno storico positivo che ti seguirà nelle prossime case.',
-    },
-    {
-        id: 'i2',
-        cat: 'inquilini',
-        q: 'Quanto costa CRIA per un inquilino?',
-        a: 'Niente. Per l\'inquilino è completamente gratuito. È il locatore che attiva e paga il servizio. Tu hai accesso alla tua dashboard, ai tuoi dati, alle contestazioni e al tuo storico senza alcun costo.',
-    },
-    {
-        id: 'i3',
-        cat: 'inquilini',
-        q: 'Posso contestare una segnalazione?',
-        a: 'Sì, hai 7 giorni dalla segnalazione per inserire una contestazione. Puoi allegare ricevute, screenshot, documenti, e spiegare la tua versione. Il nostro team analizza le evidenze e comunica l\'esito a entrambe le parti entro 14 giorni.',
-    },
-
-    // Verifica
-    {
-        id: 'v1',
-        cat: 'verifica',
-        q: 'Come funziona CRIA Verifica?',
-        a: 'È un servizio one-shot per verificare lo storico pagamenti di un potenziale inquilino prima di firmare. Acquisti la verifica, inserisci i dati della persona (nome, codice fiscale), carichi il tuo documento di identità, e ricevi l\'esito via mail in PDF entro 48 ore.',
-    },
-    {
-        id: 'v2',
-        cat: 'verifica',
-        q: 'Cosa succede se la persona non è nel database?',
-        a: 'Riceverai un esito "Nessun dato disponibile". Significa che la persona non ha precedenti registrati su CRIA. Non è una bocciatura: semplicemente non ci sono informazioni storiche da segnalare.',
-    },
-    {
-        id: 'v3',
-        cat: 'verifica',
-        q: 'L\'inquilino verrà a saperlo?',
-        a: 'La persona verificata ha diritto di sapere, su richiesta, di essere stata verificata e di accedere all\'esito. È previsto dal GDPR. Tu come richiedente non sei obbligato a comunicarlo proattivamente, ma se la persona te lo chiede sì.',
-    },
-
-    // Privacy
-    {
-        id: 'pr1',
-        cat: 'privacy',
-        q: 'CRIA è conforme al GDPR?',
-        a: 'Sì. CRIA tratta i dati nel pieno rispetto del Regolamento UE 2016/679 e della normativa italiana. Raccogliamo solo i dati strettamente necessari (storico pagamenti, regolarità), conserviamo per il tempo minimo necessario e garantiamo i diritti di accesso, modifica e cancellazione previsti dalla legge.',
-    },
-    {
-        id: 'pr2',
-        cat: 'privacy',
-        q: 'Quali dati raccogliete?',
-        a: 'Solo dati di pagamento: data, importo, regolarità del versamento. Niente dati bancari, niente buste paga, niente referenze personali. Sappiamo solo se il pagamento è avvenuto e quando.',
-    },
-    {
-        id: 'pr3',
-        cat: 'privacy',
-        q: 'Per quanto tempo conservate i dati?',
-        a: 'Lo storico pagamenti resta attivo per 24 mesi dall\'ultimo pagamento registrato. Gli esiti delle verifiche per 12 mesi. Dopo, vengono archiviati in forma anonima per statistiche aggregate. Puoi richiedere la cancellazione anticipata in qualsiasi momento scrivendo a privacy@cria.it.',
-    },
-    {
-        id: 'pr4',
-        cat: 'privacy',
-        q: 'Chi può vedere i miei dati?',
-        a: 'Per gli inquilini: solo il locatore attuale e il team CRIA con limitazioni operative. Per i locatori: i dati dei loro inquilini ed eventuali avvocati assegnati alle pratiche. Quando cambi locatore, il nuovo non vede nulla del precedente. Tutto è tracciato negli audit log.',
-    },
-];
-
-// ─── CHIP CATEGORIE + LISTA FAQ ───────────────────────────────────────────────
+// ─── FAQ — UNA FONTE SOLA ─────────────────────────────────────────────────────
+// Le domande arrivano dallo stesso posto in cui le modifica l'editor admin
+// (O-29, lib/faqDemo.js): il contenuto di partenza è data/faqData.js, più quello
+// che l'admin ha cambiato. Qui si mostrano solo categorie e domande attive, nel
+// loro ordine, con prezzi e giorni presi dal listino.
 const FaqSection = () => {
+    const t = useT();
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: '-50px' });
+    const { categorie, faq: FAQS } = useFaqPubbliche();
 
     const [activeCategory, setActiveCategory] = useState('tutte');
     const [openFaq, setOpenFaq] = useState(null);
 
+    // Il filtro «Tutte» è un testo della pagina; le altre categorie vengono dalle FAQ.
+    const etichettaTutte = semplice(t('supporto.faq.tutte'));
+    const CATEGORIES = useMemo(() => [
+        { id: 'tutte', label: etichettaTutte },
+        ...categorie.map(c => ({ id: String(c.id), label: c.nome })),
+    ], [categorie, etichettaTutte]);
+
     const filteredFaqs = useMemo(() => {
         if (activeCategory === 'tutte') return FAQS;
-        return FAQS.filter(f => f.cat === activeCategory);
-    }, [activeCategory]);
+        return FAQS.filter(f => String(f.categoriaId) === activeCategory);
+    }, [activeCategory, FAQS]);
 
     const countByCategory = useMemo(() => {
         const counts = { tutte: FAQS.length };
         CATEGORIES.forEach(c => {
             if (c.id === 'tutte') return;
-            counts[c.id] = FAQS.filter(f => f.cat === c.id).length;
+            counts[c.id] = FAQS.filter(f => String(f.categoriaId) === c.id).length;
         });
         return counts;
-    }, []);
+    }, [FAQS, CATEGORIES]);
 
     const handleCategoryClick = (catId) => {
         setActiveCategory(catId);
@@ -316,7 +168,7 @@ const FaqSection = () => {
                         <div className="text-center py-12 rounded-2xl"
                             style={{ background: '#F5F5F0', border: '1px solid rgba(26, 45, 82, 0.08)' }}>
                             <p className="text-base" style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
-                                Nessuna domanda in questa categoria.
+                                <Ricco>{t('supporto.faq.nessuna')}</Ricco>
                             </p>
                         </div>
                     ) : (
@@ -335,7 +187,7 @@ const FaqSection = () => {
                                 >
                                     <span className="text-base lg:text-lg font-semibold leading-tight"
                                         style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                                        {f.q}
+                                        {f.domanda}
                                     </span>
                                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform"
                                         style={{
@@ -352,7 +204,7 @@ const FaqSection = () => {
                                         className="px-5 pb-5"
                                     >
                                         <p className="text-base leading-relaxed" style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
-                                            {f.a}
+                                            {f.risposta}
                                         </p>
                                     </motion.div>
                                 )}
@@ -367,8 +219,11 @@ const FaqSection = () => {
 
 // ─── DUE CARD: ACCEDI O REGISTRATI ────────────────────────────────────────────
 const ContattaciCards = () => {
+    const t = useT();
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: '-100px' });
+    // L'indirizzo è anche il link che apre la posta: senza i segni del testo ricco.
+    const email = semplice(t('supporto.contatti.email.indirizzo')).trim();
 
     return (
         <section ref={ref} className="py-24" style={{ background: '#F5F5F0' }}>
@@ -381,7 +236,7 @@ const ContattaciCards = () => {
                     className="text-xs uppercase tracking-[0.25em] mb-6 text-center"
                     style={{ fontFamily: fontMono, color: '#C97B5C' }}
                 >
-                    Vuoi parlare con noi?
+                    {t('supporto.contatti.occhiello')}
                 </motion.div>
 
                 <motion.h2
@@ -397,7 +252,7 @@ const ContattaciCards = () => {
                         fontWeight: 400,
                     }}
                 >
-                    La chat in dashboard è il <span className="italic" style={{ color: '#C97B5C' }}>canale più veloce.</span>
+                    <Ricco evidenza={corsivo('#C97B5C')}>{t('supporto.contatti.titolo')}</Ricco>
                 </motion.h2>
 
                 <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -419,21 +274,21 @@ const ContattaciCards = () => {
                         </div>
 
                         <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ fontFamily: fontMono, color: '#22C55E' }}>
-                            Sei già su CRIA?
+                            {t('supporto.contatti.accedi.occhiello')}
                         </p>
                         <h3 className="text-2xl lg:text-3xl font-bold leading-tight mb-4"
                             style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#1A2D52' }}>
-                            Accedi e <span className="italic">scrivici in chat.</span>
+                            <Ricco evidenza={soloCorsivo}>{t('supporto.contatti.accedi.titolo')}</Ricco>
                         </h3>
                         <p className="text-base leading-relaxed mb-8"
                             style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
-                            La chat di assistenza è disponibile direttamente dalla tua area personale. Risposte rapide, contesto già caricato, tutto in un posto solo.
+                            <Ricco>{t('supporto.contatti.accedi.testo')}</Ricco>
                         </p>
 
                         <Link to="/login">
                             <button className="group flex items-center gap-3 px-6 py-3 rounded-full text-sm font-semibold transition-all hover:scale-[1.02]"
                                 style={{ background: '#1A2D52', color: '#FFFFFF', fontFamily: fontBody }}>
-                                Accedi al tuo account
+                                {t('supporto.contatti.accedi.pulsante')}
                                 <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                             </button>
                         </Link>
@@ -460,21 +315,21 @@ const ContattaciCards = () => {
                             </div>
 
                             <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ fontFamily: fontMono, color: '#E8B59C' }}>
-                                Non hai ancora un account?
+                                {t('supporto.contatti.registrati.occhiello')}
                             </p>
                             <h3 className="text-2xl lg:text-3xl font-bold leading-tight mb-4"
                                 style={{ fontFamily: fontHeader, fontVariationSettings: fontSettingsSoft, color: '#FFFFFF' }}>
-                                Registrati gratis e <span className="italic" style={{ color: '#E8B59C' }}>scrivici da lì.</span>
+                                <Ricco evidenza={corsivo('#E8B59C')}>{t('supporto.contatti.registrati.titolo')}</Ricco>
                             </h3>
                             <p className="text-base leading-relaxed mb-8"
                                 style={{ fontFamily: fontBody, color: 'rgba(255, 255, 255, 0.75)' }}>
-                                La registrazione è gratuita e non ti vincola a nulla. Una volta dentro, hai accesso alla chat di assistenza anche prima di scegliere un prodotto.
+                                <Ricco>{t('supporto.contatti.registrati.testo')}</Ricco>
                             </p>
 
                             <Link to="/signup">
                                 <button className="group flex items-center gap-3 px-6 py-3 rounded-full text-sm font-semibold transition-all hover:scale-[1.02]"
                                     style={{ background: '#FFFFFF', color: '#1A2D52', fontFamily: fontBody }}>
-                                    Registrati gratis
+                                    {t('supporto.contatti.registrati.pulsante')}
                                     <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                                 </button>
                             </Link>
@@ -489,14 +344,14 @@ const ContattaciCards = () => {
                     className="text-center"
                 >
                     <p className="text-sm" style={{ fontFamily: fontBody, color: '#6B6B5E' }}>
-                        Per richieste generali o informazioni:{' '}
+                        {t('supporto.contatti.email.frase')}{' '}
                         <a
-                            href="mailto:info@cria.it"
+                            href={`mailto:${email}`}
                             className="font-semibold inline-flex items-center gap-1.5 hover:underline"
                             style={{ color: '#1A2D52' }}
                         >
                             <Mail className="w-3.5 h-3.5" />
-                            info@cria.it
+                            {email}
                         </a>
                     </p>
                 </motion.div>
@@ -507,11 +362,12 @@ const ContattaciCards = () => {
 
 // ─── PAGINA PRINCIPALE ────────────────────────────────────────────────────────
 const SupportoPage = () => {
+    const t = useT();
     return (
         <>
             <Helmet>
-                <title>Supporto e FAQ — CRIA</title>
-                <meta name="description" content="Le domande frequenti su CRIA: prezzi, onboarding, prodotti, privacy. Per parlare direttamente con noi, accedi al tuo account o registrati." />
+                <title>{semplice(t('supporto.meta.titolo'))}</title>
+                <meta name="description" content={semplice(t('supporto.meta.descrizione'))} />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
                 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300,50;0,9..144,400,50;0,9..144,500,50;0,9..144,600,50;0,9..144,700,50;1,9..144,300,50;1,9..144,400,50&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />

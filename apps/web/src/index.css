@@ -78,6 +78,10 @@
   
   html {
     scroll-behavior: smooth;
+    /* Gli elementi che entrano di lato con un'animazione non allargano la
+       pagina sul telefono. «clip» taglia senza creare un'area di scorrimento,
+       così le testate fisse continuano a funzionare. */
+    overflow-x: clip;
   }
   
   body {

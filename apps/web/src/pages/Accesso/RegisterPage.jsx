@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
+import { Shield, Eye, EyeOff, CheckCircle2, XCircle, User, Building2 } from 'lucide-react';
+import BottoneGoogle from '@/components/BottoneGoogle';
+import NotaMockup from '@/components/NotaMockup';
+import CorniceAccesso, { fontTitolo } from '@/components/accesso/CorniceAccesso';
+import { emailGiaUsata, telefonoGiaUsato, MESSAGGI_UNICITA } from '@/lib/unicita';
+import { useAuth } from '@/contexts/AuthContext.jsx';
 
-// ─── Prefissi telefonici ───────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// REGISTRAZIONE — F-02
+// Solo i dati per entrare. Persona fisica e persona giuridica sono soggetti
+// distinti, con reputazioni che non si sommano. La fatturazione si chiede al
+// primo acquisto (F-13), l'identità si verifica dopo con il documento (F-07).
+// L'iscrizione è vera: crea l'account e la persona nel database, e prima
+// controlla che email e cellulare non siano già di qualcuno. Per ora senza
+// conferma dell'email: si entra subito, e si carica il documento.
+// ═════════════════════════════════════════════════════════════════════════════
+
 const PREFISSI = [
     { code: '+39', label: '🇮🇹 +39' },
     { code: '+41', label: '🇨🇭 +41' },
@@ -16,23 +30,45 @@ const PREFISSI = [
     { code: '+1', label: '🇺🇸 +1' },
 ];
 
-// ─── Validatori ────────────────────────────────────────────────────────────────
+const TIPI_PERSONA = [
+    { valore: 'fisica', label: 'Persona fisica', icona: User },
+    { valore: 'giuridica', label: 'Società o ente', icona: Building2 },
+];
+
+// Il valore è quello che legge l'onboarding (=== 'agenzia'). Prima veniva
+// salvata l'etichetta, e le agenzie non ricevevano mai i passaggi dedicati.
+const TIPI_ACCOUNT = [
+    { valore: 'privato', label: 'Privato' },
+    { valore: 'agenzia', label: 'Agenzia immobiliare' },
+];
+
+const giuridica = (form) => form.tipoPersona === 'giuridica';
+
 const validatori = {
-    nome: (v) => v.trim().length >= 2 ? null : 'Il nome deve avere almeno 2 caratteri',
-    cognome: (v) => v.trim().length >= 2 ? null : 'Il cognome deve avere almeno 2 caratteri',
-    email: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : 'Email non valida',
-    telefono: (v) => /^\d{6,15}$/.test(v.replace(/\s/g, '')) ? null : 'Numero non valido (6-15 cifre)',
-    tipoAccount: (v) => v ? null : 'Seleziona il tipo di account',
+    tipoPersona: (v) => (v ? null : 'Indica se ti registri come persona o come società'),
+    ragioneSociale: (v, form) => (!giuridica(form) || v.trim().length >= 2 ? null : 'Inserisci la ragione sociale'),
+    partitaIva: (v, form) => (!giuridica(form) || /^\d{11}$/.test(v.replace(/\s/g, '')) ? null : 'La partita IVA ha 11 cifre'),
+    nome: (v) => (v.trim().length >= 2 ? null : 'Il nome deve avere almeno 2 caratteri'),
+    cognome: (v) => (v.trim().length >= 2 ? null : 'Il cognome deve avere almeno 2 caratteri'),
+    // Email e cellulare già usati non passano: in CRIA ci si registra una volta sola.
+    email: (v) => {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Email non valida';
+        return emailGiaUsata(v) ? MESSAGGI_UNICITA.email : null;
+    },
+    telefono: (v, form) => {
+        if (!/^\d{6,15}$/.test(v.replace(/\s/g, ''))) return 'Numero non valido (6-15 cifre)';
+        return telefonoGiaUsato(`${form.prefisso}${v}`) ? MESSAGGI_UNICITA.telefono : null;
+    },
+    tipoAccount: (v) => (v ? null : 'Seleziona il tipo di account'),
     password: (v) => {
         if (v.length < 8) return 'Almeno 8 caratteri';
         if (!/[A-Z]/.test(v)) return 'Almeno una lettera maiuscola';
         if (!/[0-9]/.test(v)) return 'Almeno un numero';
         return null;
     },
-    confermaPassword: (v, form) => v === form.password ? null : 'Le password non coincidono',
+    confermaPassword: (v, form) => (v === form.password ? null : 'Le password non coincidono'),
 };
 
-// ─── Indicatore forza password ─────────────────────────────────────────────────
 const ForzaPassword = ({ password }) => {
     if (!password) return null;
     const checks = [
@@ -65,11 +101,9 @@ const ForzaPassword = ({ password }) => {
     );
 };
 
-// ─── Componente principale ─────────────────────────────────────────────────────
 const RegisterPage = () => {
-    const navigate = useNavigate();
-
     const [form, setForm] = useState({
+        tipoPersona: '', ragioneSociale: '', partitaIva: '',
         nome: '', cognome: '', email: '',
         prefisso: '+39', telefono: '',
         tipoAccount: '',
@@ -81,18 +115,21 @@ const RegisterPage = () => {
     const [showConfirm, setShowConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [erroreGenerale, setErroreGenerale] = useState('');
+    const { registrati } = useAuth();
+    const navigate = useNavigate();
+
+    const validate = (field, value, base = form) => {
+        const fn = validatori[field];
+        if (!fn) return null;
+        const err = fn(value, { ...base, [field]: value });
+        setErrors(prev => ({ ...prev, [field]: err }));
+        return err;
+    };
 
     const set = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
         if (touched[field]) validate(field, value);
-    };
-
-    const validate = (field, value) => {
-        const fn = validatori[field];
-        if (!fn) return null;
-        const err = field === 'confermaPassword' ? fn(value, form) : fn(value);
-        setErrors(prev => ({ ...prev, [field]: err }));
-        return err;
     };
 
     const touch = (field) => {
@@ -100,59 +137,102 @@ const RegisterPage = () => {
         validate(field, form[field]);
     };
 
+    const campi = () => [
+        'tipoPersona',
+        ...(giuridica(form) ? ['ragioneSociale', 'partitaIva'] : []),
+        'nome', 'cognome', 'email', 'telefono', 'tipoAccount', 'password', 'confermaPassword',
+    ];
+
     const validateAll = () => {
+        const fields = campi();
         const newErrors = {};
-        const fields = ['nome', 'cognome', 'email', 'telefono', 'tipoAccount', 'password', 'confermaPassword'];
-        fields.forEach(f => {
-            const fn = validatori[f];
-            if (fn) newErrors[f] = f === 'confermaPassword' ? fn(form[f], form) : fn(form[f]);
-        });
+        fields.forEach(f => { newErrors[f] = validatori[f](form[f], form); });
         setErrors(newErrors);
         setTouched(Object.fromEntries(fields.map(f => [f, true])));
         return Object.values(newErrors).every(e => !e);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setErroreGenerale('');
         if (!validateAll()) return;
         setLoading(true);
-        // TODO: chiamata Edge Function / Supabase Auth
-        setTimeout(() => {
-            setLoading(false);
-            sessionStorage.setItem('tipo_account', form.tipoAccount); // aggiungi questa riga
+        const esito = await registrati({
+            email: form.email,
+            password: form.password,
+            tipo: form.tipoPersona,
+            nome: form.nome,
+            cognome: form.cognome,
+            ragioneSociale: giuridica(form) ? form.ragioneSociale : null,
+            partitaIva: giuridica(form) ? form.partitaIva.replace(/\s/g, '') : null,
+            telefono: `${form.prefisso} ${form.telefono.replace(/\s/g, '')}`,
+            tipoAccount: form.tipoAccount,
+        });
+        setLoading(false);
+        if (esito.errore) {
+            // Email o cellulare già di qualcuno: l'errore va sul campo.
+            const campo = { email_usata: 'email', telefono_usato: 'telefono' }[esito.errore];
+            if (campo) {
+                setErrors(prev => ({ ...prev, [campo]: MESSAGGI_UNICITA[campo] }));
+                setTouched(prev => ({ ...prev, [campo]: true }));
+                document.getElementById(campo)?.focus();
+                return;
+            }
+            setErroreGenerale(esito.errore === 'debole'
+                ? 'Questa password è troppo debole: scegline una più lunga.'
+                : 'Non riusciamo a completare l’iscrizione adesso: riprova tra poco.');
+            return;
+        }
+        sessionStorage.setItem('tipo_account', form.tipoAccount);
+        sessionStorage.setItem('tipo_persona', form.tipoPersona);
+        // Sul Mac, nel modo demo, l'iscrizione resta simulata.
+        if (esito.simulata || esito.confermaEmail) {
             setSubmitted(true);
-        }, 1200);
+            return;
+        }
+        toast.success('Il tuo account è attivo: ora carica il documento d’identità');
+        navigate('/dashboard', { replace: true });
     };
 
-    const FieldError = ({ field }) => errors[field] && touched[field]
+    const FieldError = ({ field }) => (errors[field] && touched[field]
         ? <p className="text-xs text-red-500 mt-1">{errors[field]}</p>
-        : null;
+        : null);
 
-    const inputClass = (field) => `w-full text-sm rounded-lg border px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${errors[field] && touched[field] ? 'border-red-400' : 'border-border'
-        }`;
+    const inputClass = (field) => `w-full text-sm rounded-lg border px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${errors[field] && touched[field] ? 'border-red-400' : 'border-border'}`;
 
-    // ── Schermata conferma email ──
+    const sceltaClass = (attiva) => `px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all ${attiva
+        ? 'border-primary bg-primary/5 text-primary'
+        : 'border-border text-muted-foreground hover:border-primary/50'}`;
+
     if (submitted) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
-                <div className="w-full max-w-md text-center space-y-5">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                        <CheckCircle2 className="w-8 h-8 text-green-600" />
+            <>
+                <Helmet><title>Controlla la tua email - CRIA</title></Helmet>
+                <CorniceAccesso variante="registrazione">
+                    <div className="space-y-5">
+                        <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
+                            <CheckCircle2 className="w-7 h-7 text-green-600" />
+                        </div>
+                        <h1 className="text-3xl text-[#1A2D52]" style={fontTitolo}>Controlla la tua email</h1>
+                        <p className="text-[#6B6B5E]">
+                            Abbiamo inviato un link di verifica a <strong className="text-[#1A2D52]">{form.email}</strong>.
+                            Aprilo per confermare l’indirizzo: il passo successivo è il documento d’identità.
+                        </p>
+                        <p className="text-sm text-[#6B6B5E]">
+                            Non hai ricevuto nulla?{' '}
+                            <button type="button" className="text-[#1A2D52] underline underline-offset-4">Invia di nuovo</button>
+                        </p>
+                        <Link to="/login" className="block">
+                            <Button variant="outline" className="w-full h-11">Torna al login</Button>
+                        </Link>
+                        <NotaMockup>
+                            <Link to="/verifica-email?token=demo" className="underline font-medium">
+                                Simula il click sul link ricevuto via email
+                            </Link>
+                        </NotaMockup>
                     </div>
-                    <h1 className="text-2xl font-bold text-foreground">Controlla la tua email</h1>
-                    <p className="text-muted-foreground">
-                        Abbiamo inviato un link di verifica a <strong>{form.email}</strong>.
-                        Clicca il link per attivare il tuo account e iniziare l'onboarding.
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        Non hai ricevuto nulla?{' '}
-                        <button className="text-primary underline">Invia di nuovo</button>
-                    </p>
-                    <Link to="/login">
-                        <Button variant="outline" className="w-full">Torna al login</Button>
-                    </Link>
-                </div>
-            </div>
+                </CorniceAccesso>
+            </>
         );
     }
 
@@ -160,187 +240,192 @@ const RegisterPage = () => {
         <>
             <Helmet><title>Registrati - CRIA</title></Helmet>
 
-            <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-
-                {/* Header */}
-                <header className="bg-transparent">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex items-center justify-end h-16">
-                            <Link to="/">
-                                <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                                    Torna alla home
-                                </Button>
-                            </Link>
-                        </div>
+            <CorniceAccesso variante="registrazione">
+                <div className="space-y-6 py-6">
+                    <div className="space-y-2">
+                        <h1 className="text-4xl text-[#1A2D52]" style={fontTitolo}>Crea il tuo account</h1>
+                        <p className="text-[#6B6B5E]">
+                            Hai già un account?{' '}
+                            <Link to="/login" className="font-medium text-[#1A2D52] hover:underline underline-offset-4">Accedi</Link>
+                        </p>
                     </div>
-                </header>
 
-                <div className="flex-1 flex items-center justify-center px-4 py-8">
-                    <div className="w-full max-w-md space-y-6">
+                    <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
-                        {/* Logo + titolo */}
-                        <div className="text-center space-y-2">
-                            <img src="/logo.png" alt="CRIA" className="h-14 w-auto mx-auto mb-2" />
-                            <h1 className="text-2xl font-bold text-foreground">Crea il tuo account</h1>
-                            <p className="text-sm text-muted-foreground">
-                                Hai già un account?{' '}
-                                <Link to="/login" className="text-primary font-medium hover:underline">Accedi</Link>
-                            </p>
+                        <div className="space-y-1">
+                            <Label>Ti registri come <span className="text-red-500">*</span></Label>
+                            <div className="grid grid-cols-2 gap-3">
+                                {TIPI_PERSONA.map(({ valore, label, icona: Icona }) => (
+                                    <button key={valore} type="button" onClick={() => set('tipoPersona', valore)}
+                                        className={`${sceltaClass(form.tipoPersona === valore)} flex items-center justify-center gap-2`}>
+                                        <Icona className="w-4 h-4" /> {label}
+                                    </button>
+                                ))}
+                            </div>
+                            <FieldError field="tipoPersona" />
                         </div>
 
-                        {/* Form */}
-                        <div className="bg-card border border-border rounded-2xl shadow-sm p-6 space-y-4">
-                            <form onSubmit={handleSubmit} noValidate className="space-y-4">
-
-                                {/* Tipo account */}
+                        {giuridica(form) && (
+                            <div className="space-y-4 rounded-xl bg-muted/30 p-4">
                                 <div className="space-y-1">
-                                    <Label>Tipo account <span className="text-red-500">*</span></Label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {['Privato', 'agenzia / agenzia'].map(tipo => (
-                                            <button
-                                                key={tipo}
-                                                type="button"
-                                                onClick={() => set('tipoAccount', tipo)}
-                                                className={`px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all ${form.tipoAccount === tipo
-                                                    ? 'border-primary bg-primary/5 text-primary'
-                                                    : 'border-border text-muted-foreground hover:border-primary/50'
-                                                    }`}
-                                            >
-                                                {tipo}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {errors.tipoAccount && touched.tipoAccount && (
-                                        <p className="text-xs text-red-500">{errors.tipoAccount}</p>
-                                    )}
+                                    <Label htmlFor="ragioneSociale">Ragione sociale <span className="text-red-500">*</span></Label>
+                                    <input id="ragioneSociale" type="text" value={form.ragioneSociale}
+                                        onChange={e => set('ragioneSociale', e.target.value)}
+                                        onBlur={() => touch('ragioneSociale')}
+                                        placeholder="Immobiliare Esempio S.r.l."
+                                        className={inputClass('ragioneSociale')} />
+                                    <FieldError field="ragioneSociale" />
                                 </div>
-
-                                {/* Nome + Cognome */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <Label htmlFor="nome">Nome <span className="text-red-500">*</span></Label>
-                                        <input id="nome" type="text" value={form.nome}
-                                            onChange={e => set('nome', e.target.value)}
-                                            onBlur={() => touch('nome')}
-                                            placeholder="Mario"
-                                            className={inputClass('nome')} />
-                                        <FieldError field="nome" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="cognome">Cognome <span className="text-red-500">*</span></Label>
-                                        <input id="cognome" type="text" value={form.cognome}
-                                            onChange={e => set('cognome', e.target.value)}
-                                            onBlur={() => touch('cognome')}
-                                            placeholder="Rossi"
-                                            className={inputClass('cognome')} />
-                                        <FieldError field="cognome" />
-                                    </div>
-                                </div>
-
-                                {/* Email */}
                                 <div className="space-y-1">
-                                    <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
-                                    <input id="email" type="email" value={form.email}
-                                        onChange={e => set('email', e.target.value)}
-                                        onBlur={() => touch('email')}
-                                        placeholder="mario.rossi@email.it"
-                                        className={inputClass('email')} />
-                                    <FieldError field="email" />
+                                    <Label htmlFor="partitaIva">Partita IVA <span className="text-red-500">*</span></Label>
+                                    <input id="partitaIva" type="text" inputMode="numeric" value={form.partitaIva}
+                                        onChange={e => set('partitaIva', e.target.value)}
+                                        onBlur={() => touch('partitaIva')}
+                                        placeholder="12345678901"
+                                        className={inputClass('partitaIva')} />
+                                    <FieldError field="partitaIva" />
                                 </div>
+                            </div>
+                        )}
 
-                                {/* Telefono */}
-                                <div className="space-y-1">
-                                    <Label htmlFor="telefono">Telefono <span className="text-red-500">*</span></Label>
-                                    <div className="flex gap-2">
-                                        <select
-                                            value={form.prefisso}
-                                            onChange={e => set('prefisso', e.target.value)}
-                                            className="text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 flex-shrink-0"
-                                        >
-                                            {PREFISSI.map(p => (
-                                                <option key={p.code} value={p.code}>{p.label}</option>
-                                            ))}
-                                        </select>
-                                        <input id="telefono" type="tel" value={form.telefono}
-                                            onChange={e => set('telefono', e.target.value)}
-                                            onBlur={() => touch('telefono')}
-                                            placeholder="333 1234567"
-                                            className={`flex-1 ${inputClass('telefono')}`} />
-                                    </div>
-                                    <FieldError field="telefono" />
-                                </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <Label htmlFor="nome">{giuridica(form) ? 'Nome del referente' : 'Nome'} <span className="text-red-500">*</span></Label>
+                                <input id="nome" type="text" value={form.nome}
+                                    onChange={e => set('nome', e.target.value)}
+                                    onBlur={() => touch('nome')}
+                                    placeholder="Mario"
+                                    className={inputClass('nome')} />
+                                <FieldError field="nome" />
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="cognome">{giuridica(form) ? 'Cognome del referente' : 'Cognome'} <span className="text-red-500">*</span></Label>
+                                <input id="cognome" type="text" value={form.cognome}
+                                    onChange={e => set('cognome', e.target.value)}
+                                    onBlur={() => touch('cognome')}
+                                    placeholder="Rossi"
+                                    className={inputClass('cognome')} />
+                                <FieldError field="cognome" />
+                            </div>
+                        </div>
 
-                                {/* Password */}
-                                <div className="space-y-1">
-                                    <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
-                                    <div className="relative">
-                                        <input id="password" type={showPwd ? 'text' : 'password'} value={form.password}
-                                            onChange={e => set('password', e.target.value)}
-                                            onBlur={() => touch('password')}
-                                            placeholder="••••••••"
-                                            className={inputClass('password')}
-                                            style={{ paddingRight: '2.5rem' }} />
-                                        <button type="button" onClick={() => setShowPwd(s => !s)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                                            {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                    <ForzaPassword password={form.password} />
-                                    <FieldError field="password" />
-                                </div>
+                        <div className="space-y-1">
+                            <Label>Tipo di account <span className="text-red-500">*</span></Label>
+                            <div className="grid grid-cols-2 gap-3">
+                                {TIPI_ACCOUNT.map(({ valore, label }) => (
+                                    <button key={valore} type="button" onClick={() => set('tipoAccount', valore)}
+                                        className={sceltaClass(form.tipoAccount === valore)}>
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                            {form.tipoAccount === 'agenzia' && (
+                                <p className="text-xs text-muted-foreground">Per chi gestisce immobili per conto dei proprietari.</p>
+                            )}
+                            <FieldError field="tipoAccount" />
+                        </div>
 
-                                {/* Conferma password */}
-                                <div className="space-y-1">
-                                    <Label htmlFor="confermaPassword">Conferma password <span className="text-red-500">*</span></Label>
-                                    <div className="relative">
-                                        <input id="confermaPassword" type={showConfirm ? 'text' : 'password'} value={form.confermaPassword}
-                                            onChange={e => set('confermaPassword', e.target.value)}
-                                            onBlur={() => touch('confermaPassword')}
-                                            placeholder="••••••••"
-                                            className={inputClass('confermaPassword')}
-                                            style={{ paddingRight: '2.5rem' }} />
-                                        <button type="button" onClick={() => setShowConfirm(s => !s)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                                            {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                    {form.confermaPassword && form.confermaPassword === form.password && (
-                                        <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                                            <CheckCircle2 className="w-3 h-3" /> Le password coincidono
-                                        </p>
-                                    )}
-                                    <FieldError field="confermaPassword" />
-                                </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
+                            <input id="email" type="email" value={form.email}
+                                onChange={e => set('email', e.target.value)}
+                                onBlur={() => touch('email')}
+                                placeholder="mario.rossi@email.it"
+                                className={inputClass('email')} />
+                            <FieldError field="email" />
+                        </div>
 
-                                {/* Privacy */}
-                                <p className="text-xs text-muted-foreground">
-                                    Registrandoti accetti i nostri{' '}
-                                    <Link to="/termini" className="text-primary hover:underline">Termini di servizio</Link>{' '}
-                                    e la{' '}
-                                    <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
+                        <div className="space-y-1">
+                            <Label htmlFor="telefono">Cellulare <span className="text-red-500">*</span></Label>
+                            <div className="flex gap-2">
+                                <select
+                                    value={form.prefisso}
+                                    onChange={e => set('prefisso', e.target.value)}
+                                    className="text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 flex-shrink-0"
+                                >
+                                    {PREFISSI.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
+                                </select>
+                                <input id="telefono" type="tel" value={form.telefono}
+                                    onChange={e => set('telefono', e.target.value)}
+                                    onBlur={() => touch('telefono')}
+                                    placeholder="333 1234567"
+                                    className={`flex-1 ${inputClass('telefono')}`} />
+                            </div>
+                            <p className="text-xs text-muted-foreground">Serve per gli avvisi importanti via SMS.</p>
+                            <FieldError field="telefono" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
+                            <div className="relative">
+                                <input id="password" type={showPwd ? 'text' : 'password'} value={form.password}
+                                    onChange={e => set('password', e.target.value)}
+                                    onBlur={() => touch('password')}
+                                    placeholder="••••••••"
+                                    className={inputClass('password')}
+                                    style={{ paddingRight: '2.5rem' }} />
+                                <button type="button" onClick={() => setShowPwd(s => !s)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                    {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                            <ForzaPassword password={form.password} />
+                            <FieldError field="password" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label htmlFor="confermaPassword">Conferma password <span className="text-red-500">*</span></Label>
+                            <div className="relative">
+                                <input id="confermaPassword" type={showConfirm ? 'text' : 'password'} value={form.confermaPassword}
+                                    onChange={e => set('confermaPassword', e.target.value)}
+                                    onBlur={() => touch('confermaPassword')}
+                                    placeholder="••••••••"
+                                    className={inputClass('confermaPassword')}
+                                    style={{ paddingRight: '2.5rem' }} />
+                                <button type="button" onClick={() => setShowConfirm(s => !s)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                    {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                            {form.confermaPassword && form.confermaPassword === form.password && (
+                                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                                    <CheckCircle2 className="w-3 h-3" /> Le password coincidono
                                 </p>
-
-                                {/* Submit */}
-                                <Button type="submit" className="w-full gap-2" disabled={loading}>
-                                    {loading ? (
-                                        <><div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> Creazione account...</>
-                                    ) : (
-                                        'Crea account'
-                                    )}
-                                </Button>
-
-                            </form>
+                            )}
+                            <FieldError field="confermaPassword" />
                         </div>
 
-                        {/* Footer */}
-                        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                            <Shield className="w-3.5 h-3.5" />
-                            <span>I tuoi dati sono protetti e crittografati</span>
-                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Registrandoti accetti i nostri{' '}
+                            <Link to="/termini" className="text-primary hover:underline">Termini di servizio</Link>{' '}
+                            e la{' '}
+                            <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
+                        </p>
 
+                        {erroreGenerale && <p className="text-sm text-red-600" role="alert">{erroreGenerale}</p>}
+
+                        <Button type="submit" className="w-full h-12 gap-2 text-base bg-[#1A2D52] hover:bg-[#0F1B33]" disabled={loading}>
+                            {loading ? (
+                                <><div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> Creazione account...</>
+                            ) : 'Crea account'}
+                        </Button>
+                    </form>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="h-px flex-1 bg-[#E5E5DE]" />
+                            <span className="text-xs text-[#6B6B5E]">oppure</span>
+                            <div className="h-px flex-1 bg-[#E5E5DE]" />
+                        </div>
+                        <BottoneGoogle testo="Registrati con Google" />
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-[#6B6B5E]">
+                        <Shield className="w-3.5 h-3.5" />
+                        <span>I tuoi dati sono protetti e crittografati</span>
                     </div>
                 </div>
-            </div>
+            </CorniceAccesso>
         </>
     );
 };

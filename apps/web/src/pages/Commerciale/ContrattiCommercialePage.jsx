@@ -62,7 +62,7 @@ const ContrattiCommercialePage = () => {
         <>
             <Helmet><title>I miei contratti - CRIA Commerciale</title></Helmet>
 
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <div className="space-y-6">
 
                 <div>
                     <h1 className="text-2xl font-bold text-foreground mb-1">I miei contratti</h1>

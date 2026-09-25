@@ -13,18 +13,18 @@ import { toast } from 'sonner';
 
 // ─── Dati mock provvigioni ─────────────────────────────────────────────────────
 const PROVVIGIONI = [
-    { id: 1, data: '2026-04-01', beneficiario: 'Luca Verdi', ruolo: 'commerciale', cliente: 'Marco Bianchi', prodotto: 'CRIA Gestione', importoVendita: 299, importoProvv: 50, stato: 'maturata' },
-    { id: 2, data: '2026-04-02', beneficiario: 'Sara Galli', ruolo: 'commerciale', cliente: 'Sara Conti', prodotto: 'CRIA Completo', importoVendita: 499, importoProvv: 80, stato: 'in attesa' },
-    { id: 3, data: '2026-04-03', beneficiario: 'Marco Fontana', ruolo: 'commerciale', cliente: 'Luca Ferrari', prodotto: 'CRIA Verifica', importoVendita: 49, importoProvv: 10, stato: 'maturata' },
-    { id: 4, data: '2026-04-05', beneficiario: 'Luca Verdi', ruolo: 'commerciale', cliente: 'Giulia Neri', prodotto: 'CRIA Gestione', importoVendita: 299, importoProvv: 50, stato: 'maturata' },
-    { id: 5, data: '2026-04-01', beneficiario: 'Avv. Paolo Conti', ruolo: 'avvocato', cliente: 'Marco Bianchi', prodotto: 'CRIA Gestione', importoVendita: 299, importoProvv: 80, stato: 'maturata' },
-    { id: 6, data: '2026-04-02', beneficiario: 'Avv. Maria Romano', ruolo: 'avvocato', cliente: 'Sara Conti', prodotto: 'CRIA Completo', importoVendita: 499, importoProvv: 150, stato: 'in attesa' },
-    { id: 7, data: '2026-03-05', beneficiario: 'Marco Fontana', ruolo: 'commerciale', cliente: 'Davide Ricci', prodotto: 'CRIA Gestione', importoVendita: 299, importoProvv: 50, stato: 'pagata' },
-    { id: 8, data: '2026-03-10', beneficiario: 'Luca Verdi', ruolo: 'commerciale', cliente: 'Elena Vitali', prodotto: 'CRIA Completo', importoVendita: 499, importoProvv: 80, stato: 'pagata' },
-    { id: 9, data: '2026-03-05', beneficiario: 'Avv. Paolo Conti', ruolo: 'avvocato', cliente: 'Davide Ricci', prodotto: 'CRIA Gestione', importoVendita: 299, importoProvv: 80, stato: 'pagata' },
-    { id: 10, data: '2026-03-10', beneficiario: 'Avv. Maria Romano', ruolo: 'avvocato', cliente: 'Elena Vitali', prodotto: 'CRIA Completo', importoVendita: 499, importoProvv: 150, stato: 'pagata' },
-    { id: 11, data: '2026-02-18', beneficiario: 'Sara Galli', ruolo: 'commerciale', cliente: 'Giorgio Esposito', prodotto: 'CRIA Completo', importoVendita: 499, importoProvv: 80, stato: 'pagata' },
-    { id: 12, data: '2026-02-18', beneficiario: 'Avv. Carlo Ferrara', ruolo: 'avvocato', cliente: 'Giorgio Esposito', prodotto: 'CRIA Completo', importoVendita: 499, importoProvv: 150, stato: 'pagata' },
+    { id: 1, data: '2026-04-01', beneficiario: 'Luca Verdi', ruolo: 'commerciale', cliente: 'Marco Bianchi', prodotto: 'CRIA Gestione', importoProvv: 50, stato: 'maturata' },
+    { id: 2, data: '2026-04-02', beneficiario: 'Sara Galli', ruolo: 'commerciale', cliente: 'Sara Conti', prodotto: 'CRIA Completo', importoProvv: 80, stato: 'in attesa' },
+    { id: 3, data: '2026-04-03', beneficiario: 'Marco Fontana', ruolo: 'commerciale', cliente: 'Luca Ferrari', prodotto: 'CRIA Verifica', importoProvv: 10, stato: 'maturata' },
+    { id: 4, data: '2026-04-05', beneficiario: 'Luca Verdi', ruolo: 'commerciale', cliente: 'Giulia Neri', prodotto: 'CRIA Gestione', importoProvv: 50, stato: 'maturata' },
+    { id: 5, data: '2026-04-01', beneficiario: 'Avv. Paolo Conti', ruolo: 'avvocato', cliente: 'Marco Bianchi', prodotto: 'CRIA Gestione', importoProvv: 80, stato: 'maturata' },
+    { id: 6, data: '2026-04-02', beneficiario: 'Avv. Maria Romano', ruolo: 'avvocato', cliente: 'Sara Conti', prodotto: 'CRIA Completo', importoProvv: 150, stato: 'in attesa' },
+    { id: 7, data: '2026-03-05', beneficiario: 'Marco Fontana', ruolo: 'commerciale', cliente: 'Davide Ricci', prodotto: 'CRIA Gestione', importoProvv: 50, stato: 'pagata' },
+    { id: 8, data: '2026-03-10', beneficiario: 'Luca Verdi', ruolo: 'commerciale', cliente: 'Elena Vitali', prodotto: 'CRIA Completo', importoProvv: 80, stato: 'pagata' },
+    { id: 9, data: '2026-03-05', beneficiario: 'Avv. Paolo Conti', ruolo: 'avvocato', cliente: 'Davide Ricci', prodotto: 'CRIA Gestione', importoProvv: 80, stato: 'pagata' },
+    { id: 10, data: '2026-03-10', beneficiario: 'Avv. Maria Romano', ruolo: 'avvocato', cliente: 'Elena Vitali', prodotto: 'CRIA Completo', importoProvv: 150, stato: 'pagata' },
+    { id: 11, data: '2026-02-18', beneficiario: 'Sara Galli', ruolo: 'commerciale', cliente: 'Giorgio Esposito', prodotto: 'CRIA Completo', importoProvv: 80, stato: 'pagata' },
+    { id: 12, data: '2026-02-18', beneficiario: 'Avv. Carlo Ferrara', ruolo: 'avvocato', cliente: 'Giorgio Esposito', prodotto: 'CRIA Completo', importoProvv: 150, stato: 'pagata' },
 ];
 
 // ─── Dati mock richieste pagamento ────────────────────────────────────────────
@@ -207,7 +207,6 @@ const TabProvvigioni = () => {
                                     <Th label="Ruolo" field="ruolo" />
                                     <Th label="Cliente" field="cliente" />
                                     <Th label="Prodotto" field="prodotto" />
-                                    <Th label="Vendita" field="importoVendita" />
                                     <Th label="Provvigione" field="importoProvv" />
                                     <Th label="Stato" field="stato" />
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Scheda</th>
@@ -215,7 +214,7 @@ const TabProvvigioni = () => {
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {filtered.length === 0 ? (
-                                    <tr><td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">Nessuna provvigione trovata.</td></tr>
+                                    <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">Nessuna provvigione trovata.</td></tr>
                                 ) : filtered.map((p) => (
                                     <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                                         <td className="px-4 py-3 text-muted-foreground tabular-nums">{fmt(p.data)}</td>
@@ -227,7 +226,6 @@ const TabProvvigioni = () => {
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">{p.cliente}</td>
                                         <td className="px-4 py-3 text-muted-foreground">{p.prodotto}</td>
-                                        <td className="px-4 py-3 text-muted-foreground tabular-nums">{fmtEur(p.importoVendita)}</td>
                                         <td className="px-4 py-3 font-semibold tabular-nums text-foreground">{fmtEur(p.importoProvv)}</td>
                                         <td className="px-4 py-3">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATO_BADGE_PROVV[p.stato]}`}>

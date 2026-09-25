@@ -1,40 +1,13 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { SEMAFORO } from '@/lib/semaforo';
 
+// Il bollino del semaforo. Etichette e colori vengono da lib/semaforo.js,
+// l'unico posto in cui sono definiti.
 const StatusBadge = ({ status, className = '' }) => {
-  const getStatusConfig = (status) => {
-    switch (status) {
-      case 'verde':
-        return {
-          label: 'In regola',
-          className: 'bg-[hsl(var(--status-green))] text-white hover:bg-[hsl(var(--status-green))]/90'
-        };
-      case 'giallo':
-        return {
-          label: 'Attenzione',
-          className: 'bg-[hsl(var(--status-yellow))] text-white hover:bg-[hsl(var(--status-yellow))]/90'
-        };
-      case 'rosso':
-        return {
-          label: 'In ritardo',
-          className: 'bg-[hsl(var(--status-red))] text-white hover:bg-[hsl(var(--status-red))]/90'
-        };
-      default:
-        return {
-          label: 'Sconosciuto',
-          className: 'bg-muted text-muted-foreground'
-        };
-    }
-  };
-
-  const config = getStatusConfig(status);
-
-  return (
-    <Badge className={`${config.className} ${className}`}>
-      {config.label}
-    </Badge>
-  );
+    const voce = SEMAFORO[status];
+    if (!voce) return <Badge className={`bg-muted text-muted-foreground ${className}`}>—</Badge>;
+    return <Badge className={`${voce.pieno} ${className}`} title={voce.spiegazione}>{voce.etichetta}</Badge>;
 };
 
 export default StatusBadge;

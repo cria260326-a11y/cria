@@ -1,199 +1,103 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { Helmet } from 'react-helmet';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-    Euro, Search, X, ArrowUpRight, CheckCircle2, Clock,
-    AlertTriangle, Download, Calendar, Info, TrendingUp
-} from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Calendar, Info } from 'lucide-react';
+import IntestazionePagina from '@/components/aree/IntestazionePagina';
+import Contatore from '@/components/aree/Contatore';
+import { useDatiInquilino } from '@/hooks/useDatiArea';
+import { OGGI } from '@/data/datiDemo';
+import { fmtEuro } from '@/data/catalogo';
+import { esitoMese, ESITI_MESE } from '@/lib/semaforo';
+import { nomeMese, fmtData, meseSuccessivo } from '@/lib/formato';
+import EstremiBonifico from '@/components/aree/EstremiBonifico';
+import { useProdotti, bonificoPronto, causaleCliente } from '@/lib/prodottiDemo';
 
-const PAGAMENTI = [
-    { id: 1, data: '2026-04-03', mese: 'Aprile 2026', importo: 1200, metodo: 'bonifico', stato: 'effettuato', segnalato: true, contestato: false },
-    { id: 2, data: '2026-03-04', mese: 'Marzo 2026', importo: 1200, metodo: 'bonifico', stato: 'contestato', segnalato: true, contestato: true },
-    { id: 3, data: '2026-02-05', mese: 'Febbraio 2026', importo: 1200, metodo: 'bonifico', stato: 'effettuato', segnalato: true, contestato: false },
-    { id: 4, data: '2026-01-03', mese: 'Gennaio 2026', importo: 1200, metodo: 'bonifico', stato: 'effettuato', segnalato: true, contestato: false },
-];
+// I-04 — I miei pagamenti.
+// Con CRIA Completo il canone si paga a CRIA, con il codice del contratto come
+// causale: qui l'inquilino trova gli estremi che l'admin ha messo nel prodotto.
 
-const PROSSIMO_PAGAMENTO = {
-    mese: 'Maggio 2026',
-    importo: 1200,
-    scadenza: '2026-05-05',
-};
-
-const fmtEur = (n) => `€ ${n.toLocaleString('it-IT')}`;
-const fmtData = (iso) => new Date(iso).toLocaleDateString('it-IT');
-
-const STATO_BADGE = {
-    effettuato: { label: 'Effettuato', color: 'bg-green-100 text-green-800', icon: CheckCircle2 },
-    in_attesa: { label: 'In attesa', color: 'bg-blue-100 text-blue-800', icon: Clock },
-    contestato: { label: 'Contestato', color: 'bg-red-100 text-red-800', icon: AlertTriangle },
-};
+const SEGNALATO = { pagato: 'Pagato', non_pagato: 'Non pagato', non_rilevato: 'Non segnalato' };
 
 const PagamentiInquilinoPage = () => {
-    const [search, setSearch] = useState('');
-    const [filtroDa, setDa] = useState('');
-    const [filtroA, setA] = useState('');
-
-    const filtrati = useMemo(() => {
-        let list = [...PAGAMENTI];
-        if (search.trim()) {
-            const q = search.toLowerCase();
-            list = list.filter(p => p.mese.toLowerCase().includes(q));
-        }
-        if (filtroDa) list = list.filter(p => p.data >= filtroDa);
-        if (filtroA) list = list.filter(p => p.data <= filtroA);
-        return list.sort((a, b) => b.data.localeCompare(a.data));
-    }, [search, filtroDa, filtroA]);
-
-    const contatori = useMemo(() => ({
-        totalePagato: PAGAMENTI.filter(p => p.stato !== 'contestato').reduce((s, p) => s + p.importo, 0),
-        pagamentiEff: PAGAMENTI.filter(p => p.stato === 'effettuato').length,
-        contestati: PAGAMENTI.filter(p => p.stato === 'contestato').length,
-        mediaGiorni: Math.round(PAGAMENTI.reduce((s, p) => s + new Date(p.data).getDate(), 0) / PAGAMENTI.length),
-    }), []);
-
-    const hasFilters = search || filtroDa || filtroA;
-    const giorniAlPagamento = Math.ceil((new Date(PROSSIMO_PAGAMENTO.scadenza) - new Date()) / 86400000);
+    const { contratti, analisiPersona } = useDatiInquilino();
+    const catalogo = useProdotti();
+    const prossimo = meseSuccessivo(OGGI.slice(0, 7));
+    const righe = contratti.flatMap(c => c.mesi.map(m => ({ ...m, c }))).sort((a, b) => b.mese.localeCompare(a.mese));
+    const piuContratti = contratti.length > 1;
 
     return (
         <>
-            <Helmet><title>Pagamenti - CRIA</title></Helmet>
+            <Helmet><title>I miei pagamenti - CRIA</title></Helmet>
+            <div className="space-y-6">
+                <IntestazionePagina titolo="I miei pagamenti" sottotitolo="I tuoi canoni degli ultimi 12 mesi e come contano nel semaforo" />
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-
-                <div className="flex items-start justify-between flex-wrap gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground mb-1">Pagamenti</h1>
-                        <p className="text-sm text-muted-foreground">Storico dei pagamenti effettuati per il tuo contratto</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <Download className="w-4 h-4" /> Esporta CSV
-                    </Button>
-                </div>
-
-                {/* Prossimo pagamento */}
-                <Card className="border-2 border-primary/20">
-                    <CardContent className="pt-5 pb-5 bg-primary/5 rounded-lg">
-                        <div className="flex items-center gap-4 flex-wrap">
-                            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <Calendar className="w-7 h-7 text-primary" />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Prossimo pagamento</p>
-                                <p className="text-lg font-bold text-foreground">{PROSSIMO_PAGAMENTO.mese} — {fmtEur(PROSSIMO_PAGAMENTO.importo)}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    Scadenza: {fmtData(PROSSIMO_PAGAMENTO.scadenza)}
-                                    {giorniAlPagamento > 0 && ` · tra ${giorniAlPagamento} giorni`}
-                                    {giorniAlPagamento === 0 && ` · oggi`}
-                                    {giorniAlPagamento < 0 && ` · scaduto da ${Math.abs(giorniAlPagamento)} giorni`}
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* KPI */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {[
-                        { label: 'Totale pagato', value: fmtEur(contatori.totalePagato), icon: Euro, color: 'bg-green-500' },
-                        { label: 'Pagamenti effettuati', value: contatori.pagamentiEff, icon: CheckCircle2, color: 'bg-blue-500' },
-                        { label: 'Contestati', value: contatori.contestati, icon: AlertTriangle, color: 'bg-red-500' },
-                        { label: 'Giorno medio pagamento', value: contatori.mediaGiorni, icon: TrendingUp, color: 'bg-purple-500' },
-                    ].map(({ label, value, icon: Icon, color }) => (
-                        <Card key={label}>
-                            <CardContent className="pt-5 pb-4 flex items-center gap-3">
-                                <div className={`p-2.5 rounded-lg ${color} flex-shrink-0`}>
-                                    <Icon className="w-5 h-5 text-white" />
+                {contratti.map(c => {
+                    const prodotto = catalogo.trova(c.prodotto);
+                    const aCria = prodotto?.incassa === 'cria';
+                    return (
+                        <Card key={c.id} className="border-2 border-primary/20">
+                            <CardContent className="pt-5 pb-5 bg-primary/5 rounded-lg space-y-4">
+                                <div className="flex items-center gap-4 flex-wrap">
+                                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"><Calendar className="w-6 h-6 text-primary" /></div>
+                                    <div className="flex-1">
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Prossimo canone{piuContratti ? ` · ${c.immobile.indirizzo}` : ''}</p>
+                                        <p className="text-lg font-bold text-foreground">{nomeMese(prossimo)} · {fmtEuro(c.canone)}</p>
+                                        <p className="text-sm text-muted-foreground">Scade il 1 {nomeMese(prossimo).toLowerCase()} · {aCria ? 'lo paghi a CRIA, che lo gira al proprietario' : `a ${c.locatore.nome}`}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-xl font-bold tabular-nums text-foreground">{value}</p>
-                                    <p className="text-xs text-muted-foreground">{label}</p>
-                                </div>
+                                {aCria && (bonificoPronto(prodotto)
+                                    ? <EstremiBonifico bonifico={prodotto.bonifico} importo={c.canone} causale={causaleCliente(prodotto, c.codiceUnivoco)} titolo="Fai il bonifico del canone a" className="bg-background" />
+                                    : <p className="text-sm text-muted-foreground">Le coordinate per il bonifico a CRIA arrivano qui a breve. Nella causale scrivi il codice del contratto: <span className="font-mono text-foreground">{c.codiceUnivoco}</span>.</p>)}
                             </CardContent>
                         </Card>
-                    ))}
+                    );
+                })}
+
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                    <Contatore etichetta="Mesi pagati" valore={righe.filter(r => r.stato === 'pagato').length} colore="bg-green-500" />
+                    <Contatore etichetta="Giorno medio di pagamento" valore={analisiPersona.media == null ? '—' : `il ${String(analisiPersona.media).replace('.', ',')}`} colore="bg-purple-500" />
+                    <Contatore etichetta="Non rilevati" valore={analisiPersona.nonRilevati} colore="bg-gray-400" nota="Non contano nel semaforo" />
+                    <Contatore etichetta="In verifica" valore={analisiPersona.inSospeso} colore="bg-blue-500" nota="Contestati o contestabili" />
                 </div>
 
-                {/* Banner suggerimento */}
                 <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                     <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-blue-800">
-                        <p className="font-medium">Paga entro il giorno 5 per mantenere il tuo punteggio "verde"</p>
-                        <p className="text-xs mt-0.5">Pagamenti regolari aumentano la tua reputazione come inquilino e ti danno accesso a vantaggi su nuovi contratti.</p>
-                    </div>
+                    <p className="text-sm text-blue-900">
+                        Il semaforo guarda il giorno del mese in cui paghi: entro il 5 è puntuale, dal 6 al 10 è in ritardo, oltre il 10 pesa di più. Se il proprietario non segnala nulla, il mese non conta né a favore né contro.
+                    </p>
                 </div>
 
-                {/* Filtri */}
                 <Card>
-                    <CardContent className="pt-4 pb-4">
-                        <div className="flex flex-wrap gap-3 items-end">
-                            <div className="relative flex-1 min-w-48">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input placeholder="Cerca per mese..."
-                                    value={search} onChange={e => setSearch(e.target.value)}
-                                    style={{ paddingLeft: '2.5rem' }} />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-muted-foreground px-1">Dal</span>
-                                <Input type="date" value={filtroDa} onChange={e => setDa(e.target.value)} className="w-36" />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-muted-foreground px-1">Al</span>
-                                <Input type="date" value={filtroA} onChange={e => setA(e.target.value)} className="w-36" />
-                            </div>
-                            {hasFilters && (
-                                <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setDa(''); setA(''); }}>
-                                    <X className="w-3.5 h-3.5 mr-1" /> Azzera
-                                </Button>
-                            )}
-                        </div>
+                    <CardContent className="p-0 overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="border-b border-border bg-muted/40">
+                                <tr className="text-left text-xs font-semibold text-muted-foreground uppercase">
+                                    <th className="px-4 py-3">Mese</th>{piuContratti && <th className="px-4 py-3">Immobile</th>}
+                                    <th className="px-4 py-3">Pagato il</th><th className="px-4 py-3">Segnalato dal proprietario</th><th className="px-4 py-3">Nel semaforo</th><th className="px-4 py-3 text-right">Importo</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {righe.map(r => {
+                                    const e = esitoMese(r);
+                                    return (
+                                        <tr key={`${r.c.id}-${r.mese}`} className="hover:bg-muted/30">
+                                            <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{nomeMese(r.mese)}</td>
+                                            {piuContratti && <td className="px-4 py-3 text-muted-foreground">{r.c.immobile.indirizzo}</td>}
+                                            <td className="px-4 py-3 tabular-nums text-muted-foreground whitespace-nowrap">{r.pagatoIl ? fmtData(r.pagatoIl) : '—'}</td>
+                                            <td className="px-4 py-3 text-muted-foreground">{SEGNALATO[r.segnalazione.tipo]}{r.segnalazione.tipo !== 'non_rilevato' && ` il ${fmtData(r.segnalazione.il)}`}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
+                                                    <span className="w-2 h-2 rounded-full" style={{ background: ESITI_MESE[e].colore }} />{ESITI_MESE[e].etichetta}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right tabular-nums font-medium text-foreground">{fmtEuro(r.canone)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </CardContent>
                 </Card>
-
-                {/* Tabella pagamenti */}
-                <Card>
-                    <CardContent className="p-0">
-                        {filtrati.length === 0 ? (
-                            <div className="py-16 text-center">
-                                <Euro className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-                                <p className="text-sm text-muted-foreground">Nessun pagamento trovato</p>
-                            </div>
-                        ) : (
-                            <table className="w-full text-sm">
-                                <thead className="border-b border-border bg-muted/40">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Mese</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Data pagamento</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Metodo</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Stato</th>
-                                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Importo</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border">
-                                    {filtrati.map(p => {
-                                        const cfg = STATO_BADGE[p.stato];
-                                        const Icon = cfg.icon;
-                                        return (
-                                            <tr key={p.id} className="hover:bg-muted/30">
-                                                <td className="px-4 py-3 font-medium text-foreground">{p.mese}</td>
-                                                <td className="px-4 py-3 text-muted-foreground tabular-nums">{fmtData(p.data)}</td>
-                                                <td className="px-4 py-3 text-muted-foreground capitalize">{p.metodo}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
-                                                        <Icon className="w-3 h-3" /> {cfg.label}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right tabular-nums font-medium text-foreground">{fmtEur(p.importo)}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        )}
-                    </CardContent>
-                </Card>
-
             </div>
         </>
     );

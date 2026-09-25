@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,80 +7,38 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import {
     Search, MessageSquare, CheckCircle2, Clock,
-    ChevronUp, ChevronDown, Send, Paperclip,
+    ChevronUp, ChevronDown, Send,
     X, ArrowLeft, Plus, User
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { etichettaRuolo } from '@/lib/etichette';
+import { fmtQuando } from '@/lib/formato';
+import Messaggio from '@/components/aree/Messaggio';
+import { useConversazioni, scriviMessaggio, cambiaStatoConversazione, apriConversazione } from '@/lib/conversazioniFonte';
+import { usePersone } from '@/lib/personeFonte';
 
-// ─── Dati mock ─────────────────────────────────────────────────────────────────
-const TICKETS_INIZIALI = [
-    {
-        id: 1,
-        titolo: 'Problema con segnalazione pagamento',
-        descrizione: 'Ho segnalato il pagamento ma non risulta nel sistema.',
-        mittente: { nome: 'Marco Bianchi', ruolo: 'locatore' },
-        destinatario: 'CRIA',
-        stato: 'aperto',
-        data: '2026-04-01',
-        messaggi: [
-            { id: 1, autore: 'Marco Bianchi', ruolo: 'locatore', testo: 'Ho segnalato il pagamento di Aprile ma non risulta nel sistema. Come posso risolvere?', data: '01/04/2026 10:22', allegati: [] },
-            { id: 2, autore: 'CRIA', ruolo: 'admin', testo: 'Buongiorno Marco, stiamo verificando. Le risponderemo entro 24 ore.', data: '01/04/2026 11:05', allegati: [] },
-        ],
-    },
-    {
-        id: 2,
-        titolo: 'Richiesta documenti aggiuntivi',
-        descrizione: 'Avvocato richiede visura catastale aggiornata.',
-        mittente: { nome: 'Avv. Paolo Conti', ruolo: 'avvocato' },
-        destinatario: 'Sara Conti',
-        stato: 'aperto',
-        data: '2026-04-02',
-        messaggi: [
-            { id: 1, autore: 'Avv. Paolo Conti', ruolo: 'avvocato', testo: 'Gentile Sara, per completare la pratica ho bisogno della visura catastale aggiornata (non oltre 3 mesi).', data: '02/04/2026 09:15', allegati: [] },
-        ],
-    },
-    {
-        id: 3,
-        titolo: 'Contestazione mancato pagamento Marzo',
-        descrizione: "L'inquilino contesta la segnalazione del locatore.",
-        mittente: { nome: 'Sofia Martini', ruolo: 'inquilino' },
-        destinatario: 'CRIA',
-        stato: 'aperto',
-        data: '2026-03-29',
-        messaggi: [
-            { id: 1, autore: 'Sofia Martini', ruolo: 'inquilino', testo: 'Ho effettuato il pagamento il 27 marzo. Allego la ricevuta del bonifico.', data: '29/03/2026 14:30', allegati: ['ricevuta_bonifico.pdf'] },
-            { id: 2, autore: 'CRIA', ruolo: 'admin', testo: 'Grazie Sofia, abbiamo ricevuto la documentazione. Stiamo verificando con il locatore.', data: '29/03/2026 15:00', allegati: [] },
-            { id: 3, autore: 'Marco Bianchi', ruolo: 'locatore', testo: 'Il pagamento non risulta sul mio conto. Sto controllando con la banca.', data: '30/03/2026 10:00', allegati: [] },
-        ],
-    },
-    {
-        id: 4,
-        titolo: 'Chiarimenti contratto di locazione',
-        descrizione: 'Richiesta chiarimenti su clausole contrattuali.',
-        mittente: { nome: 'Luca Ferrari', ruolo: 'locatore' },
-        destinatario: 'Avv. Paolo Conti',
-        stato: 'chiuso',
-        data: '2026-03-15',
-        messaggi: [
-            { id: 1, autore: 'Luca Ferrari', ruolo: 'locatore', testo: 'Buongiorno, ho alcune domande sulla clausola di recesso anticipato nel contratto.', data: '15/03/2026 09:00', allegati: [] },
-            { id: 2, autore: 'Avv. Paolo Conti', ruolo: 'avvocato', testo: 'Certo, la clausola prevede un preavviso di 6 mesi. Le mando il documento con le specifiche.', data: '15/03/2026 11:30', allegati: ['clausola_recesso.pdf'] },
-            { id: 3, autore: 'Luca Ferrari', ruolo: 'locatore', testo: 'Perfetto, grazie mille. Tutto chiaro.', data: '15/03/2026 12:00', allegati: [] },
-        ],
-    },
-    {
-        id: 5,
-        titolo: 'Richiesta info su inquilino',
-        descrizione: 'Esito verifica disponibile.',
-        mittente: { nome: 'CRIA', ruolo: 'admin' },
-        destinatario: 'Giulia Neri',
-        stato: 'chiuso',
-        data: '2026-03-10',
-        messaggi: [
-            { id: 1, autore: 'CRIA', ruolo: 'admin', testo: 'Buongiorno Giulia, la verifica richiesta è stata completata. Può accedere al risultato dalla sua dashboard.', data: '10/03/2026 14:00', allegati: ['esito_verifica.pdf'] },
-            { id: 2, autore: 'Giulia Neri', ruolo: 'cliente', testo: 'Grazie mille, ho visualizzato il risultato. Ottimo servizio!', data: '10/03/2026 15:30', allegati: [] },
-        ],
-    },
-];
+// La conversazione del database, con i nomi che usa questa pagina.
+// «chiuso» qui è «risolto» nel database: la parola che si vede è quella del
+// back office, il valore resta quello.
+const perIlBackOffice = (k) => ({
+    id: k.id,
+    titolo: k.oggetto,
+    descrizione: k.categoria ? `Categoria: ${k.categoria}` : '',
+    mittente: { nome: k.apertaDa?.nome || '—', ruolo: k.area || 'cliente' },
+    destinatario: k.assegnataA?.nome || 'CRIA',
+    stato: k.stato === 'risolto' ? 'chiuso' : 'aperto',
+    data: (k.creatoIl || '').slice(0, 10),
+    messaggi: (k.messaggi || []).map(m => ({
+        id: m.id,
+        autore: m.autore?.nome || 'CRIA',
+        ruolo: m.daCria ? 'admin' : (k.area || 'cliente'),
+        testo: m.testo,
+        data: m.il,
+        interno: m.interno,
+        allegati: [],
+    })),
+});
+
 
 const isInAttesa = (ticket) => {
     if (ticket.messaggi.length === 0) return false;
@@ -89,14 +47,6 @@ const isInAttesa = (ticket) => {
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
-const RUOLO_COLOR = {
-    admin: 'bg-primary text-primary-foreground',
-    locatore: 'bg-blue-500 text-white',
-    inquilino: 'bg-green-500 text-white',
-    avvocato: 'bg-amber-500 text-white',
-    cliente: 'bg-gray-400 text-white',
-};
-
 const RUOLO_BADGE = {
     admin: 'bg-purple-100 text-purple-800',
     locatore: 'bg-blue-100 text-blue-800',
@@ -123,32 +73,22 @@ const StatBox = ({ label, value, icon: Icon, color }) => (
 
 // ─── Vista ticket singolo ─────────────────────────────────────────────────────
 const VistaTicket = ({ ticket, onBack, onCambiaStato }) => {
-    const [messaggi, setMessaggi] = useState(ticket.messaggi);
     const [testo, setTesto] = useState('');
-    const [allegati, setAllegati] = useState([]);
-    const fileRef = useRef(null);
-    const bottomRef = useRef(null);
+    const [interno, setInterno] = useState(false);
+    const listaRef = useRef(null);
+    const messaggi = ticket.messaggi;
 
-    const inviaMessaggio = () => {
-        if (!testo.trim()) return;
-        const msg = {
-            id: Date.now(),
-            autore: 'CRIA',
-            ruolo: 'admin',
-            testo,
-            data: new Date().toLocaleString('it-IT'),
-            allegati: allegati.map(f => f.name),
-        };
-        setMessaggi(prev => [...prev, msg]);
+    // La conversazione si apre sull'ultimo messaggio, e ci resta quando ne arriva uno.
+    useEffect(() => {
+        if (listaRef.current) listaRef.current.scrollTop = listaRef.current.scrollHeight;
+    }, [messaggi.length]);
+
+    const inviaMessaggio = async () => {
+        const scritto = testo.trim();
+        if (!scritto) return;
         setTesto('');
-        setAllegati([]);
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    };
-
-    const handleFile = (e) => {
-        const files = Array.from(e.target.files);
-        setAllegati(prev => [...prev, ...files]);
-        toast.success(`${files.length} file aggiunto/i`);
+        const esito = await scriviMessaggio(ticket.id, scritto, { interno });
+        if (!esito.ok) { setTesto(scritto); toast.error(esito.messaggio || 'Messaggio non inviato'); }
     };
 
     return (
@@ -195,71 +135,44 @@ const VistaTicket = ({ ticket, onBack, onCambiaStato }) => {
             {/* Thread messaggi */}
             <Card>
                 <CardContent className="p-0">
-                    <div className="divide-y divide-border max-h-96 overflow-y-auto">
-                        {messaggi.map((msg) => (
-                            <div key={msg.id} className="p-4 space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${RUOLO_COLOR[msg.ruolo] || 'bg-gray-400 text-white'}`}>
-                                        {msg.autore.charAt(0)}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <span className="font-medium text-sm text-foreground">{msg.autore}</span>
-                                        <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${RUOLO_BADGE[msg.ruolo] || 'bg-gray-100 text-gray-700'}`}>
-                                            {msg.ruolo}
-                                        </span>
-                                    </div>
-                                    <span className="text-xs text-muted-foreground flex-shrink-0">{msg.data}</span>
-                                </div>
-                                <p className="text-sm text-foreground pl-9">{msg.testo}</p>
-                                {msg.allegati.length > 0 && (
-                                    <div className="pl-9 flex flex-wrap gap-2">
-                                        {msg.allegati.map((a, i) => (
-                                            <span key={i} className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded">
-                                                <Paperclip className="w-3 h-3" /> {a}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                    {/* Quello che scrive CRIA sta a destra, quello che riceve a sinistra */}
+                    <div ref={listaRef} className="p-4 space-y-3 max-h-[28rem] overflow-y-auto">
+                        {messaggi.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">Ancora nessun messaggio.</p>
+                        ) : messaggi.map((msg) => (
+                            <Messaggio
+                                key={msg.id}
+                                mio={msg.ruolo === 'admin'}
+                                autore={msg.autore}
+                                ruolo={msg.interno ? 'Nota interna' : etichettaRuolo(msg.ruolo)}
+                                quando={fmtQuando(msg.data)}
+                                allegati={msg.allegati}
+                            >
+                                {msg.testo}
+                            </Messaggio>
                         ))}
-                        <div ref={bottomRef} />
                     </div>
 
                     {/* Input risposta */}
                     {ticket.stato === 'aperto' && (
                         <div className="p-4 border-t border-border space-y-3">
-                            {allegati.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {allegati.map((f, i) => (
-                                        <span key={i} className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded">
-                                            <Paperclip className="w-3 h-3" /> {f.name}
-                                            <button onClick={() => setAllegati(prev => prev.filter((_, j) => j !== i))}>
-                                                <X className="w-3 h-3 ml-1" />
-                                            </button>
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
                             <div className="flex gap-2">
                                 <textarea
                                     value={testo}
                                     onChange={e => setTesto(e.target.value)}
-                                    placeholder="Scrivi una risposta..."
+                                    placeholder={interno ? 'Nota interna: il cliente non la vede…' : 'Scrivi una risposta…'}
                                     rows={2}
                                     className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
                                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); inviaMessaggio(); } }}
                                 />
-                                <div className="flex flex-col gap-2">
-                                    <Button size="sm" variant="outline" className="h-8 w-8 p-0"
-                                        onClick={() => fileRef.current?.click()}>
-                                        <Paperclip className="w-4 h-4" />
-                                    </Button>
-                                    <Button size="sm" className="h-8 w-8 p-0" onClick={inviaMessaggio}>
-                                        <Send className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                                <input ref={fileRef} type="file" multiple className="hidden" onChange={handleFile} />
+                                <Button size="sm" className="h-8 w-8 p-0 self-end" onClick={inviaMessaggio}>
+                                    <Send className="w-4 h-4" />
+                                </Button>
                             </div>
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                                <input type="checkbox" checked={interno} onChange={e => setInterno(e.target.checked)} className="w-3.5 h-3.5 accent-amber-600" />
+                                Nota interna: resta fra colleghi, il cliente non la legge
+                            </label>
                         </div>
                     )}
 
@@ -276,8 +189,11 @@ const VistaTicket = ({ ticket, onBack, onCambiaStato }) => {
 
 // ─── Componente principale ─────────────────────────────────────────────────────
 const AssistenzaPage = () => {
-    const [tickets, setTickets] = useState(TICKETS_INIZIALI);
-    const [ticketAttivo, setAttivo] = useState(null);
+    const conversazioni = useConversazioni();
+    const persone = usePersone();
+    const tickets = useMemo(() => conversazioni.map(perIlBackOffice), [conversazioni]);
+    const [idAttivo, setAttivo] = useState(null);
+    const ticketAttivo = tickets.find(t => t.id === idAttivo) || null;
     const [search, setSearch] = useState('');
     const [filtroStato, setStato] = useState('tutti');
     const [filtroRuolo, setRuolo] = useState('tutti');
@@ -286,6 +202,11 @@ const AssistenzaPage = () => {
     const [showNuovo, setNuovo] = useState(false);
     const [nuovoForm, setNuovoForm] = useState({ titolo: '', descrizione: '', destinatario: '' });
 
+    // Un filo si apre sempre verso una persona: senza destinatario non esiste.
+    const clienti = useMemo(() => persone
+        .filter(x => (x.aree || []).some(a => ['locatore', 'inquilino', 'cliente', 'commerciale'].includes(a)))
+        .map(x => ({ id: x.personaDb, nome: [x.ragioneSociale, `${x.nome} ${x.cognome}`.trim()].find(Boolean) })), [persone]);
+
     const contatori = useMemo(() => ({
         totale: tickets.length,
         aperti: tickets.filter(t => t.stato === 'aperto').length,
@@ -293,33 +214,27 @@ const AssistenzaPage = () => {
         attesa: tickets.filter(t => t.stato === 'aperto' && isInAttesa(t)).length,
     }), [tickets]);
 
-    const cambiaStato = (id) => {
-        setTickets(prev => prev.map(t => {
-            if (t.id !== id) return t;
-            const nuovo = t.stato === 'aperto' ? 'chiuso' : 'aperto';
-            toast.success(`Ticket ${nuovo}`);
-            return { ...t, stato: nuovo };
-        }));
-        if (ticketAttivo?.id === id) {
-            setAttivo(prev => ({ ...prev, stato: prev.stato === 'aperto' ? 'chiuso' : 'aperto' }));
-        }
+    const cambiaStato = async (id) => {
+        const t = tickets.find(x => x.id === id);
+        if (!t) return;
+        const nuovo = t.stato === 'aperto' ? 'risolto' : 'aperto';
+        const esito = await cambiaStatoConversazione(id, nuovo);
+        if (esito.ok) toast.success(nuovo === 'risolto' ? 'Ticket chiuso' : 'Ticket riaperto');
+        else toast.error(esito.messaggio || 'Non riuscito');
     };
 
-    const creaNuovo = () => {
+    const creaNuovo = async () => {
         if (!nuovoForm.titolo.trim()) { toast.error('Inserisci un titolo'); return; }
-        const t = {
-            id: Date.now(),
-            titolo: nuovoForm.titolo,
-            descrizione: nuovoForm.descrizione,
-            mittente: { nome: 'CRIA', ruolo: 'admin' },
-            destinatario: nuovoForm.destinatario || '—',
-            stato: 'aperto',
-            data: new Date().toISOString().split('T')[0],
-            messaggi: [],
-        };
-        setTickets(prev => [t, ...prev]);
+        if (!nuovoForm.destinatario) { toast.error('Scegli a chi scrivere'); return; }
+        if (!nuovoForm.descrizione.trim()) { toast.error('Scrivi il messaggio'); return; }
+        const esito = await apriConversazione({
+            oggetto: nuovoForm.titolo, categoria: 'assistenza', area: null,
+            testo: nuovoForm.descrizione, perPersona: nuovoForm.destinatario,
+        });
+        if (!esito.ok) { toast.error(esito.messaggio || 'Non riuscito'); return; }
         setNuovoForm({ titolo: '', descrizione: '', destinatario: '' });
         setNuovo(false);
+        setAttivo(esito.id);
         toast.success('Ticket creato');
     };
 
@@ -363,7 +278,7 @@ const AssistenzaPage = () => {
 
     // Vista ticket singolo
     if (ticketAttivo) {
-        const t = tickets.find(t => t.id === ticketAttivo.id) || ticketAttivo;
+        const t = ticketAttivo;
         return (
             <div>
                 <Helmet><title>{`Ticket #${t.id} - Assistenza CRIA`}</title></Helmet>
@@ -393,7 +308,11 @@ const AssistenzaPage = () => {
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium text-foreground">Destinatario</label>
-                                <Input value={nuovoForm.destinatario} onChange={e => setNuovoForm(p => ({ ...p, destinatario: e.target.value }))} placeholder="Nome cliente o ruolo" />
+                                <select value={nuovoForm.destinatario} onChange={e => setNuovoForm(p => ({ ...p, destinatario: e.target.value }))}
+                                    className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground">
+                                    <option value="">Scegli la persona…</option>
+                                    {clienti.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                </select>
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium text-foreground">Descrizione</label>
@@ -454,7 +373,7 @@ const AssistenzaPage = () => {
                                 <SelectTrigger className="w-40"><SelectValue placeholder="Mittente" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="tutti">Tutti i ruoli</SelectItem>
-                                    <SelectItem value="locatore">locatore</SelectItem>
+                                    <SelectItem value="locatore">Proprietario</SelectItem>
                                     <SelectItem value="inquilino">Inquilino</SelectItem>
                                     <SelectItem value="avvocato">Avvocato</SelectItem>
                                     <SelectItem value="cliente">Cliente</SelectItem>
@@ -491,7 +410,7 @@ const AssistenzaPage = () => {
                                     {filtered.length === 0 ? (
                                         <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">Nessun ticket trovato.</td></tr>
                                     ) : filtered.map((t) => (
-                                        <tr key={t.id} className={`transition-colors cursor-pointer ${isInAttesa(t) && t.stato === 'aperto' ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-muted/30'}`} onClick={() => setAttivo(t)}>
+                                        <tr key={t.id} className={`transition-colors cursor-pointer ${isInAttesa(t) && t.stato === 'aperto' ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-muted/30'}`} onClick={() => setAttivo(t.id)}>
                                             <td className="px-4 py-3 text-muted-foreground tabular-nums">{fmt(t.data)}</td>
                                             <td className="px-4 py-3 max-w-48">
                                                 <div className="flex items-center gap-2">
@@ -505,7 +424,7 @@ const AssistenzaPage = () => {
                                                 <div>
                                                     <p className="text-sm text-foreground">{t.mittente.nome}</p>
                                                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${RUOLO_BADGE[t.mittente.ruolo]}`}>
-                                                        {t.mittente.ruolo}
+                                                        {etichettaRuolo(t.mittente.ruolo)}
                                                     </span>
                                                 </div>
                                             </td>
@@ -516,7 +435,7 @@ const AssistenzaPage = () => {
                                                     }`}>{t.stato}</span>
                                             </td>
                                             <td className="px-4 py-3 text-right">
-                                                <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setAttivo(t); }}>
+                                                <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setAttivo(t.id); }}>
                                                     Apri
                                                 </Button>
                                             </td>

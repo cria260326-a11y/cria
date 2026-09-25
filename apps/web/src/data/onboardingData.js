@@ -5,7 +5,7 @@
 export const FLUSSI_ONBOARDING = {
     AB: {
         id: 'AB',
-        nome: 'Onboarding locatore',
+        nome: 'Onboarding proprietario',
         categoria: 'A+B',
         steps: [
             {
@@ -37,7 +37,7 @@ export const FLUSSI_ONBOARDING = {
                 campi: [
                     { id: 'visura', nome: 'Visura catastale', tipo: 'documento', obbligatorio: true, note: '' },
                     { id: 'contratto', nome: 'Contratto di locazione', tipo: 'documento', obbligatorio: false, note: 'Se già esistente' },
-                    { id: 'atto_proprieta', nome: 'Atto di proprietà', tipo: 'documento', obbligatorio: false, note: 'Se proprietario ≠ locatore' },
+                    { id: 'atto_proprieta', nome: 'Atto di proprietà', tipo: 'documento', obbligatorio: false, note: 'Se non sei il proprietario' },
                 ]
             },
             {
@@ -54,7 +54,7 @@ export const FLUSSI_ONBOARDING = {
 
     C: {
         id: 'C',
-        nome: 'Onboarding Prodotto 3',
+        nome: 'Onboarding CRIA Verifica',
         categoria: 'C',
         steps: [
             {

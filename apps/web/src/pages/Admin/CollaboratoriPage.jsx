@@ -15,13 +15,13 @@ import { Link } from 'react-router-dom';
 
 // ─── Dati mock ─────────────────────────────────────────────────────────────────
 const COLLABORATORI = [
-    { id: 1, nome: 'Giulia', cognome: 'Rossi', email: 'giulia.rossi@cria.it', telefono: '+39 333 1111001', ruolo: 'manager', stato: 'attivo', createdAt: '2026-01-10', codiceReferente: null },
-    { id: 2, nome: 'Andrea', cognome: 'Marino', email: 'andrea.marino@cria.it', telefono: '+39 333 1111002', ruolo: 'manager', stato: 'attivo', createdAt: '2026-01-15', codiceReferente: null },
-    { id: 3, nome: 'Federica', cognome: 'Bruno', email: 'federica.bruno@cria.it', telefono: '+39 333 1111003', ruolo: 'manager', stato: 'sospeso', createdAt: '2026-02-01', codiceReferente: null },
-    { id: 4, nome: 'Luca', cognome: 'Verdi', email: 'luca.verdi@cria.it', telefono: '+39 347 2222001', ruolo: 'commerciale', stato: 'attivo', createdAt: '2026-01-20', codiceReferente: 'REF-001' },
-    { id: 5, nome: 'Sara', cognome: 'Galli', email: 'sara.galli@cria.it', telefono: '+39 347 2222002', ruolo: 'commerciale', stato: 'attivo', createdAt: '2026-02-05', codiceReferente: 'REF-002' },
-    { id: 6, nome: 'Marco', cognome: 'Fontana', email: 'marco.fontana@cria.it', telefono: '+39 347 2222003', ruolo: 'commerciale', stato: 'attivo', createdAt: '2026-02-10', codiceReferente: 'REF-003' },
-    { id: 7, nome: 'Elena', cognome: 'Mazza', email: 'elena.mazza@cria.it', telefono: '+39 347 2222004', ruolo: 'commerciale', stato: 'sospeso', createdAt: '2026-03-01', codiceReferente: 'REF-004' },
+    { id: 1, nome: 'Giulia', cognome: 'Rossi', email: 'giulia.rossi@cri-affitti.it', telefono: '+39 333 1111001', ruolo: 'manager', stato: 'attivo', createdAt: '2026-01-10', codiceReferente: null },
+    { id: 2, nome: 'Andrea', cognome: 'Marino', email: 'andrea.marino@cri-affitti.it', telefono: '+39 333 1111002', ruolo: 'manager', stato: 'attivo', createdAt: '2026-01-15', codiceReferente: null },
+    { id: 3, nome: 'Federica', cognome: 'Bruno', email: 'federica.bruno@cri-affitti.it', telefono: '+39 333 1111003', ruolo: 'manager', stato: 'sospeso', createdAt: '2026-02-01', codiceReferente: null },
+    { id: 4, nome: 'Luca', cognome: 'Verdi', email: 'luca.verdi@cri-affitti.it', telefono: '+39 347 2222001', ruolo: 'commerciale', stato: 'attivo', createdAt: '2026-01-20', codiceReferente: 'REF-001' },
+    { id: 5, nome: 'Sara', cognome: 'Galli', email: 'sara.galli@cri-affitti.it', telefono: '+39 347 2222002', ruolo: 'commerciale', stato: 'attivo', createdAt: '2026-02-05', codiceReferente: 'REF-002' },
+    { id: 6, nome: 'Marco', cognome: 'Fontana', email: 'marco.fontana@cri-affitti.it', telefono: '+39 347 2222003', ruolo: 'commerciale', stato: 'attivo', createdAt: '2026-02-10', codiceReferente: 'REF-003' },
+    { id: 7, nome: 'Elena', cognome: 'Mazza', email: 'elena.mazza@cri-affitti.it', telefono: '+39 347 2222004', ruolo: 'commerciale', stato: 'sospeso', createdAt: '2026-03-01', codiceReferente: 'REF-004' },
     { id: 8, nome: 'Avv. Paolo', cognome: 'Conti', email: 'p.conti@studioconti.it', telefono: '+39 320 3333001', ruolo: 'avvocato', stato: 'attivo', createdAt: '2026-01-12', codiceReferente: null },
     { id: 9, nome: 'Avv. Maria', cognome: 'Romano', email: 'm.romano@studioromano.it', telefono: '+39 320 3333002', ruolo: 'avvocato', stato: 'attivo', createdAt: '2026-02-20', codiceReferente: null },
     { id: 10, nome: 'Avv. Carlo', cognome: 'Ferrara', email: 'c.ferrara@ferrara-law.it', telefono: '+39 320 3333003', ruolo: 'avvocato', stato: 'attivo', createdAt: '2026-03-15', codiceReferente: null },
@@ -95,7 +95,7 @@ const ModalNuovoCollaboratore = ({ onClose }) => {
 
                     <div className="space-y-1.5">
                         <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
-                        <Input id="email" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="mario.rossi@cria.it" />
+                        <Input id="email" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="mario.rossi@cri-affitti.it" />
                     </div>
 
                     <div className="space-y-1.5">
@@ -140,7 +140,7 @@ const ModalNuovoCollaboratore = ({ onClose }) => {
                                 onChange={e => set('codiceReferente', e.target.value)}
                                 placeholder="Es. REF-005"
                             />
-                            <p className="text-xs text-muted-foreground">Il codice viene usato dai locatori per collegarsi al commerciale in fase di registrazione.</p>
+                            <p className="text-xs text-muted-foreground">Il codice viene usato dai proprietari per collegarsi al commerciale in fase di registrazione.</p>
                         </div>
                     )}
                 </div>
@@ -321,7 +321,7 @@ const CollaboratoriPage = () => {
 
             <div className="space-y-6">
 
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground mb-1">Collaboratori</h1>
                         <p className="text-sm text-muted-foreground">Gestione manager, commerciali e avvocati della piattaforma</p>
@@ -356,7 +356,7 @@ const CollaboratoriPage = () => {
                 {/* Tab + tabella */}
                 <Card>
                     <div className="border-b border-border px-6">
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 overflow-x-auto">
                             {TAB_CONFIG.map(({ key, label, icon: Icon }) => (
                                 <button key={key} onClick={() => setTab(key)}
                                     className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${tab === key

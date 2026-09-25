@@ -43,7 +43,7 @@ const ATTIVITA = [
 
 const fmtEur = (n) => `€ ${n.toLocaleString('it-IT')}`;
 
-const URL_REFERENTE = `https://cria.it/registrazione?ref=${UTENTE.codiceReferente}`;
+const URL_REFERENTE = `https://cri-affitti.it/signup?ref=${UTENTE.codiceReferente}`;
 
 // ─── Mini bar chart ────────────────────────────────────────────────────────────
 const MiniBars = ({ data, color = 'bg-primary' }) => {
@@ -77,8 +77,8 @@ const CommercialeDashboard = () => {
         <>
             <Helmet><title>Dashboard - CRIA Commerciale</title></Helmet>
 
-            <div className="min-h-screen bg-background">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <div>
+                <div className="space-y-8">
 
                     {/* Intestazione */}
                     <div className="flex items-start justify-between flex-wrap gap-4">

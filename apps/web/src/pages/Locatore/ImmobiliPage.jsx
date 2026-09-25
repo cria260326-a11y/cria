@@ -1,269 +1,163 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Home, Search, Plus, X, LayoutGrid, List, MapPin, ChevronRight } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge.jsx';
-import {
-    Home, Search, Filter, Plus, Eye, MapPin, User,
-    Euro, Calendar, X, ChevronRight, AlertTriangle,
-    LayoutGrid, List
-} from 'lucide-react';
+import MappaImmobili from '@/components/MappaImmobili.jsx';
+import IntestazionePagina from '@/components/aree/IntestazionePagina';
+import Contatore from '@/components/aree/Contatore';
+import { useDatiProprietario } from '@/hooks/useDatiArea';
+import { PRODOTTI, PRODOTTI_PROPRIETARIO, nomeProdotto, fmtEuro, COLORE_PRODOTTO } from '@/data/catalogo';
+import { SEMAFORO, ORDINE_SEMAFORO } from '@/lib/semaforo';
+import { fmtData } from '@/lib/formato';
 
-// ─── Mock immobili ─────────────────────────────────────────────────────────────
-const IMMOBILI = [
-    { id: 1, address: 'Via Roma 42', city: 'Milano', cap: '20100', tenant: 'Sofia Martini', monthlyRent: 1200, prodotto: 1, ruolo: 'proprietario', status: 'verde', endDate: '2026-12-31', contestazioni: 0, segnalazioneCorrente: null },
-    { id: 2, address: 'Corso Venezia 18', city: 'Milano', cap: '20121', tenant: 'Luca Romano', monthlyRent: 950, prodotto: 1, ruolo: 'proprietario', status: 'giallo', endDate: '2027-01-31', contestazioni: 1, segnalazioneCorrente: null },
-    { id: 3, address: 'Via Dante 7', city: 'Roma', cap: '00184', tenant: 'Elena Greco', monthlyRent: 1450, prodotto: 2, ruolo: 'proprietario', status: 'verde', endDate: '2027-01-14', contestazioni: 0, segnalazioneCorrente: null },
-    { id: 4, address: 'Piazza Navona 23', city: 'Roma', cap: '00186', tenant: 'Marco Esposito', monthlyRent: 1100, prodotto: 2, ruolo: 'gestore', status: 'rosso', endDate: '2027-02-28', contestazioni: 2, segnalazioneCorrente: null },
-    { id: 5, address: 'Via Garibaldi 56', city: 'Torino', cap: '10122', tenant: 'Chiara Lombardi', monthlyRent: 850, prodotto: 1, ruolo: 'proprietario', status: 'rosso', endDate: '2026-12-31', contestazioni: 0, segnalazioneCorrente: 'pagato' },
-];
+// P-09 — I miei immobili, con la stessa mappa della panoramica.
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-const fmtEur = (n) => `€ ${n.toLocaleString('it-IT')}`;
-const fmtData = (iso) => new Date(iso).toLocaleDateString('it-IT');
-
-const PRODOTTO_LABEL = { 1: 'CRIA Gestione', 2: 'CRIA Completo' };
-const PRODOTTO_BADGE = { 1: 'bg-blue-100 text-blue-800', 2: 'bg-purple-100 text-purple-800' };
-
-// ─── Card immobile ─────────────────────────────────────────────────────────────
-const ImmobileCard = ({ im }) => (
-    <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="pt-5 pb-5 space-y-4">
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground">{im.address}</h3>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" /> {im.cap} {im.city}
-                    </p>
-                </div>
-                <StatusBadge status={im.status} />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRODOTTO_BADGE[im.prodotto]}`}>
-                    {PRODOTTO_LABEL[im.prodotto]}
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground capitalize">
-                    {im.ruolo}
-                </span>
-                {im.contestazioni > 0 && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                        <AlertTriangle className="w-3 h-3" /> {im.contestazioni}
-                    </span>
-                )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Inquilino</p>
-                        <p className="text-sm font-medium text-foreground truncate">{im.tenant}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Euro className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <div>
-                        <p className="text-xs text-muted-foreground">Canone</p>
-                        <p className="text-sm font-medium text-foreground">{fmtEur(im.monthlyRent)}/mese</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2 col-span-2">
-                    <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <div>
-                        <p className="text-xs text-muted-foreground">Scadenza contratto</p>
-                        <p className="text-sm font-medium text-foreground">{fmtData(im.endDate)}</p>
-                    </div>
-                </div>
-            </div>
-
-            <Link to={`/dashboard/locatore/immobili/${im.id}`}>
-                <Button variant="outline" size="sm" className="w-full gap-2">
-                    <Eye className="w-3.5 h-3.5" /> Apri scheda
-                </Button>
-            </Link>
-        </CardContent>
-    </Card>
-);
-
-// ─── Riga immobile (vista tabella) ─────────────────────────────────────────────
-const ImmobileRow = ({ im }) => (
-    <tr className="hover:bg-muted/30">
-        <td className="px-4 py-3">
-            <p className="font-medium text-foreground text-sm">{im.address}</p>
-            <p className="text-xs text-muted-foreground">{im.cap} {im.city}</p>
-        </td>
-        <td className="px-4 py-3 text-sm text-muted-foreground">{im.tenant}</td>
-        <td className="px-4 py-3">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRODOTTO_BADGE[im.prodotto]}`}>
-                {PRODOTTO_LABEL[im.prodotto]}
-            </span>
-        </td>
-        <td className="px-4 py-3 text-sm text-foreground tabular-nums">{fmtEur(im.monthlyRent)}</td>
-        <td className="px-4 py-3 text-sm text-muted-foreground tabular-nums">{fmtData(im.endDate)}</td>
-        <td className="px-4 py-3"><StatusBadge status={im.status} /></td>
-        <td className="px-4 py-3 text-right">
-            <Link to={`/dashboard/locatore/immobili/${im.id}`}>
-                <Button variant="ghost" size="sm" className="gap-1">
-                    Apri <ChevronRight className="w-3.5 h-3.5" />
-                </Button>
-            </Link>
-        </td>
-    </tr>
-);
-
-// ─── Componente principale ────────────────────────────────────────────────────
 const ImmobiliPage = () => {
-    const [search, setSearch] = useState('');
-    const [filtroStatus, setFStatus] = useState('tutti');
-    const [filtroProdotto, setFProdotto] = useState('tutti');
-    const [vista, setVista] = useState('grid');
+    const navigate = useNavigate();
+    const { contratti } = useDatiProprietario();
+    const [cerca, setCerca] = useState('');
+    const [fSemaforo, setFSemaforo] = useState('tutti');
+    const [fProdotto, setFProdotto] = useState('tutti');
+    const [vista, setVista] = useState('schede');
 
-    const contatori = useMemo(() => ({
-        totali: IMMOBILI.length,
-        p1: IMMOBILI.filter(i => i.prodotto === 1).length,
-        p2: IMMOBILI.filter(i => i.prodotto === 2).length,
-        rossi: IMMOBILI.filter(i => i.status === 'rosso').length,
-    }), []);
+    const filtrati = useMemo(() => contratti.filter(c => {
+        const q = cerca.trim().toLowerCase();
+        if (q && !`${c.immobile.indirizzo} ${c.immobile.citta} ${c.conduttore.nome}`.toLowerCase().includes(q)) return false;
+        if (fSemaforo !== 'tutti' && c.analisi.semaforo !== fSemaforo) return false;
+        if (fProdotto !== 'tutti' && c.prodotto !== fProdotto) return false;
+        return true;
+    }), [contratti, cerca, fSemaforo, fProdotto]);
 
-    const filtrati = useMemo(() => {
-        let list = [...IMMOBILI];
-        if (search.trim()) {
-            const q = search.toLowerCase();
-            list = list.filter(i =>
-                i.address.toLowerCase().includes(q) ||
-                i.city.toLowerCase().includes(q) ||
-                i.tenant.toLowerCase().includes(q)
-            );
-        }
-        if (filtroStatus !== 'tutti') list = list.filter(i => i.status === filtroStatus);
-        if (filtroProdotto !== 'tutti') list = list.filter(i => i.prodotto === Number(filtroProdotto));
-        return list;
-    }, [search, filtroStatus, filtroProdotto]);
-
-    const hasFilters = search || filtroStatus !== 'tutti' || filtroProdotto !== 'tutti';
+    const conta = (s) => contratti.filter(c => c.analisi.semaforo === s).length;
+    const filtriAttivi = cerca || fSemaforo !== 'tutti' || fProdotto !== 'tutti';
+    const punti = filtrati.map(c => ({
+        id: c.id, lat: c.immobile.lat, lng: c.immobile.lng,
+        titolo: `${c.immobile.indirizzo}, ${c.immobile.citta}`,
+        righe: [`Inquilino: ${c.conduttore.nome}`, nomeProdotto(c.prodotto)],
+        stato: c.analisi.semaforo,
+    }));
+    const apri = (id) => navigate(`/dashboard/locatore/immobili/${id}`);
 
     return (
         <>
             <Helmet><title>I miei immobili - CRIA</title></Helmet>
+            <div className="space-y-6">
+                <IntestazionePagina
+                    titolo="I miei immobili"
+                    sottotitolo="Ogni immobile con il suo contratto, il prodotto CRIA e il semaforo dell’inquilino"
+                    azioni={<Link to="/scegli-prodotto"><Button className="gap-2"><Plus className="w-4 h-4" /> Aggiungi immobile</Button></Link>}
+                />
 
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-
-                {/* Intestazione */}
-                <div className="flex items-start justify-between flex-wrap gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground mb-1">I miei immobili</h1>
-                        <p className="text-sm text-muted-foreground">Gestisci tutti i tuoi immobili in un unico posto</p>
-                    </div>
-                    <Button className="gap-2">
-                        <Plus className="w-4 h-4" /> Aggiungi immobile
-                    </Button>
-                </div>
-
-                {/* Contatori */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {[
-                        { label: 'Totali', value: contatori.totali, color: 'bg-blue-500' },
-                        { label: 'CRIA Gestione', value: contatori.p1, color: 'bg-blue-600' },
-                        { label: 'CRIA Completo', value: contatori.p2, color: 'bg-purple-500' },
-                        { label: 'In stato rosso', value: contatori.rossi, color: 'bg-red-500' },
-                    ].map(({ label, value, color }) => (
-                        <Card key={label}>
-                            <CardContent className="pt-5 pb-4 flex items-center gap-3">
-                                <div className={`w-3 h-3 rounded-full ${color} flex-shrink-0`} />
-                                <div>
-                                    <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
-                                    <p className="text-xs text-muted-foreground">{label}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                    <Contatore etichetta="Immobili" valore={contratti.length} colore="bg-blue-500" />
+                    {['verde', 'giallo', 'rosso'].map(s => (
+                        <Contatore key={s} etichetta={SEMAFORO[s].etichetta} valore={conta(s)} colore={s === 'verde' ? 'bg-green-500' : s === 'giallo' ? 'bg-yellow-500' : 'bg-red-500'} />
                     ))}
                 </div>
 
-                {/* Filtri */}
                 <Card>
                     <CardContent className="pt-4 pb-4">
                         <div className="flex flex-wrap gap-3 items-center">
                             <div className="relative flex-1 min-w-48">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input placeholder="Cerca indirizzo, città o inquilino..."
-                                    value={search} onChange={e => setSearch(e.target.value)}
-                                    style={{ paddingLeft: '2.5rem' }} />
+                                <Input placeholder="Cerca indirizzo, città o inquilino…" value={cerca} onChange={e => setCerca(e.target.value)} style={{ paddingLeft: '2.5rem' }} />
                             </div>
-
-                            <select value={filtroStatus} onChange={e => setFStatus(e.target.value)}
-                                className="text-sm border border-border rounded-lg px-3 py-2 bg-background">
-                                <option value="tutti">Tutti gli stati</option>
-                                <option value="verde">Regolari</option>
-                                <option value="giallo">In ritardo</option>
-                                <option value="rosso">Irregolari</option>
+                            <select value={fSemaforo} onChange={e => setFSemaforo(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-2 bg-background">
+                                <option value="tutti">Tutti i semafori</option>
+                                {ORDINE_SEMAFORO.map(s => <option key={s} value={s}>{SEMAFORO[s].etichetta}</option>)}
                             </select>
-
-                            <select value={filtroProdotto} onChange={e => setFProdotto(e.target.value)}
-                                className="text-sm border border-border rounded-lg px-3 py-2 bg-background">
+                            <select value={fProdotto} onChange={e => setFProdotto(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-2 bg-background">
                                 <option value="tutti">Tutti i prodotti</option>
-                                <option value="1">CRIA Gestione</option>
-                                <option value="2">CRIA Completo</option>
+                                {PRODOTTI_PROPRIETARIO.map(p => <option key={p} value={p}>{nomeProdotto(p)}</option>)}
                             </select>
-
-                            {hasFilters && (
-                                <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFStatus('tutti'); setFProdotto('tutti'); }}>
+                            {filtriAttivi && (
+                                <Button variant="ghost" size="sm" onClick={() => { setCerca(''); setFSemaforo('tutti'); setFProdotto('tutti'); }}>
                                     <X className="w-3.5 h-3.5 mr-1" /> Azzera
                                 </Button>
                             )}
-
                             <div className="ml-auto flex gap-1 p-1 bg-muted rounded-lg">
-                                <button onClick={() => setVista('grid')}
-                                    className={`p-1.5 rounded ${vista === 'grid' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
-                                    <LayoutGrid className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => setVista('list')}
-                                    className={`p-1.5 rounded ${vista === 'list' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
-                                    <List className="w-4 h-4" />
-                                </button>
+                                <button onClick={() => setVista('schede')} className={`p-1.5 rounded ${vista === 'schede' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`} title="Schede"><LayoutGrid className="w-4 h-4" /></button>
+                                <button onClick={() => setVista('elenco')} className={`p-1.5 rounded ${vista === 'elenco' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`} title="Elenco"><List className="w-4 h-4" /></button>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Risultati */}
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base"><MapPin className="w-5 h-5" /> Sulla mappa</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                        <MappaImmobili immobili={punti} altezza={360} onApri={apri} />
+                    </CardContent>
+                </Card>
+
                 {filtrati.length === 0 ? (
                     <Card>
                         <CardContent className="py-16 text-center">
                             <Home className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-                            <p className="text-sm text-muted-foreground">Nessun immobile trovato</p>
-                            <p className="text-xs text-muted-foreground/70 mt-1">Prova a rimuovere alcuni filtri</p>
+                            <p className="text-sm text-muted-foreground">Nessun immobile con questi filtri</p>
                         </CardContent>
                     </Card>
-                ) : vista === 'grid' ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filtrati.map(im => <ImmobileCard key={im.id} im={im} />)}
+                ) : vista === 'schede' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {filtrati.map(c => (
+                            <Card key={c.id} className="hover:shadow-md transition-shadow">
+                                <CardContent className="pt-5 pb-5 space-y-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <h3 className="font-semibold text-foreground">{c.immobile.indirizzo}</h3>
+                                            <p className="text-xs text-muted-foreground mt-0.5">{c.immobile.cap} {c.immobile.citta} · {c.immobile.tipologia}, {c.immobile.mq} m²</p>
+                                        </div>
+                                        <StatusBadge status={c.analisi.semaforo} />
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${COLORE_PRODOTTO[c.prodotto]}`}>{nomeProdotto(c.prodotto)}</span>
+                                        <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                                            {PRODOTTI[c.prodotto].garanzia ? `Garanzia · franchigia ${PRODOTTI[c.prodotto].franchigiaMesi} ${PRODOTTI[c.prodotto].franchigiaMesi === 1 ? 'mese' : 'mesi'}` : 'Senza garanzia'}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border text-sm">
+                                        <div><p className="text-xs text-muted-foreground">Inquilino</p><p className="font-medium text-foreground truncate">{c.conduttore.nome}</p></div>
+                                        <div><p className="text-xs text-muted-foreground">Canone</p><p className="font-medium text-foreground">{fmtEuro(c.canone)}/mese</p></div>
+                                        <div className="col-span-2"><p className="text-xs text-muted-foreground">Scadenza contratto</p><p className="font-medium text-foreground">{fmtData(c.fine)}</p></div>
+                                    </div>
+                                    <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => apri(c.id)}>Apri la scheda <ChevronRight className="w-3.5 h-3.5" /></Button>
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
                 ) : (
                     <Card>
-                        <CardContent className="p-0">
+                        <CardContent className="p-0 overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead className="border-b border-border bg-muted/40">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Immobile</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Inquilino</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Prodotto</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Canone</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Scadenza</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Stato</th>
-                                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase"></th>
+                                    <tr className="text-left text-xs font-semibold text-muted-foreground uppercase">
+                                        <th className="px-4 py-3">Immobile</th><th className="px-4 py-3">Inquilino</th><th className="px-4 py-3">Prodotto</th>
+                                        <th className="px-4 py-3">Canone</th><th className="px-4 py-3">Scadenza</th><th className="px-4 py-3">Semaforo</th><th className="px-4 py-3" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
-                                    {filtrati.map(im => <ImmobileRow key={im.id} im={im} />)}
+                                    {filtrati.map(c => (
+                                        <tr key={c.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => apri(c.id)}>
+                                            <td className="px-4 py-3"><p className="font-medium text-foreground">{c.immobile.indirizzo}</p><p className="text-xs text-muted-foreground">{c.immobile.cap} {c.immobile.citta}</p></td>
+                                            <td className="px-4 py-3 text-muted-foreground">{c.conduttore.nome}</td>
+                                            <td className="px-4 py-3"><span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${COLORE_PRODOTTO[c.prodotto]}`}>{nomeProdotto(c.prodotto)}</span></td>
+                                            <td className="px-4 py-3 tabular-nums text-foreground">{fmtEuro(c.canone)}</td>
+                                            <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtData(c.fine)}</td>
+                                            <td className="px-4 py-3"><StatusBadge status={c.analisi.semaforo} /></td>
+                                            <td className="px-4 py-3 text-right"><ChevronRight className="w-4 h-4 text-muted-foreground inline" /></td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </CardContent>
                     </Card>
                 )}
-
             </div>
         </>
     );

@@ -1,28 +1,55 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
+import VetrinaHeader from '@/components/VetrinaHeader';
+import VetrinaFooter from '@/components/VetrinaFooter';
+import Ricco, { semplice } from '@/components/testi/Ricco';
+import { useT } from '@/lib/testi';
+
+// ⚠️ TESTO PROVVISORIO — da revisionare con un consulente legale prima del lancio.
+// I testi sono in src/testi/catalogo/termini.js: l'admin li cambia da Testi.
+const PARAGRAFI = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 const TerminiPage = () => {
+    const t = useT();
     return (
         <>
-            <Helmet><title>Termini di servizio - CRIA</title></Helmet>
-            <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7] p-8">
-                <div className="text-center max-w-md">
-                    <div className="inline-block px-3 py-1 rounded-full text-xs font-mono uppercase tracking-wider mb-6"
-                        style={{ background: 'rgba(26, 45, 82, 0.06)', color: '#1A2D52' }}>
-                        Pagina in costruzione
-                    </div>
-                    <h1 className="text-4xl font-bold mb-4" style={{ fontFamily: 'Fraunces, serif', color: '#1A2D52' }}>
-                        Termini di servizio
-                    </h1>
-                    <p className="text-base mb-8" style={{ fontFamily: 'Inter, sans-serif', color: '#6B6B5E' }}>
-                        Questa pagina sarà costruita prossimamente con lo stesso stile della Home.
+            <Helmet><title>{semplice(t('termini.meta.titolo'))}</title></Helmet>
+            <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }}>
+                <VetrinaHeader />
+
+                <section className="max-w-3xl mx-auto px-6 pt-16 pb-10">
+                    <p className="text-xs tracking-[0.2em] uppercase text-[#6B6B5E] mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {t('termini.hero.occhiello')}
                     </p>
-                    <Link to="/" className="inline-block px-6 py-3 rounded-full text-sm font-semibold"
-                        style={{ background: '#1A2D52', color: '#FAFAF7', fontFamily: 'Inter, sans-serif' }}>
-                        ← Torna alla home
-                    </Link>
-                </div>
+                    <h1 className="text-4xl md:text-5xl font-semibold text-[#1A2D52] leading-tight mb-4" style={{ fontFamily: "'Fraunces', serif" }}>
+                        <Ricco>{t('termini.hero.titolo')}</Ricco>
+                    </h1>
+                    <p className="text-[#6B6B5E]">
+                        <Ricco>{t('termini.hero.sottotitolo')}</Ricco>
+                    </p>
+                </section>
+
+                <section className="max-w-3xl mx-auto px-6 pb-20">
+                    <div className="space-y-8">
+                        {PARAGRAFI.map((n) => (
+                            <div key={n}>
+                                <h2 className="text-lg font-semibold text-[#1A2D52] mb-2" style={{ fontFamily: "'Fraunces', serif" }}>
+                                    <Ricco>{t(`termini.paragrafo${n}.titolo`)}</Ricco>
+                                </h2>
+                                <p className="text-[15px] leading-relaxed text-[#3D3D35]">
+                                    <Ricco>{t(`termini.paragrafo${n}.testo`)}</Ricco>
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="mt-12 p-4 bg-[#F5F5F0] rounded-xl text-sm text-[#6B6B5E]">
+                        <Ricco>{t('termini.contatti.testo')}</Ricco>{' '}
+                        <a href={`mailto:${semplice(t('termini.contatti.email'))}`} className="underline text-[#1A2D52]">{t('termini.contatti.email')}</a>.
+                    </div>
+                </section>
+
+                <VetrinaFooter />
             </div>
         </>
     );

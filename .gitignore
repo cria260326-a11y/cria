@@ -28,3 +28,12 @@ build
 
 # Vercel
 .vercel
+.env*
+supabase/.temp
+
+# I documenti interni non stanno nel repository del codice: strategia, prezzi,
+# organigramma e account non c'entrano con il frontend. Restano su questo disco
+# e in Download, e si spostano dove decide il titolare.
+CRIA_STATO_PROGETTO.md
+CRIA_MAPPA_SCHERMATE.md
+README_MERGE.md

@@ -1,468 +1,300 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    User, Mail, Phone, Shield, Smartphone, Key,
-    Eye, EyeOff, Edit2, Check, X, Calendar,
-    CheckCircle2, AlertTriangle, LogOut, Activity,
-    Zap, QrCode, Copy
-} from 'lucide-react';
 import { toast } from 'sonner';
+import { Bell, Briefcase, Fingerprint, FileSearch, Lock, Mail, Monitor, Phone, RotateCcw, Send, Shield, ShieldCheck, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import NotaMockup from '@/components/NotaMockup';
+import { Chip, Riquadro, Voce } from '@/components/admin/direzione/Elementi';
+import { CampoProfilo, DueFattori, Preferenza, SessioneCorrente, SezionePassword, VoceAccount } from '@/components/admin/direzione/SezioniProfilo';
+import { useAuth } from '@/contexts/AuthContext.jsx';
+import { useOperatoreAttivo } from '@/lib/operatoreAttivo';
+import { creaStoreDemo, nuovoIdDemo } from '@/lib/storeDemo';
+import { AZIONI } from '@/lib/separazione';
+import { giorniSolariTra } from '@/lib/calendario';
+import { aggiungiMesi } from '@/lib/aggregati';
+import { iniziali, nomeVisualizzato } from '@/lib/aree';
+import { fmtData } from '@/lib/formato';
+import { FUNZIONI, OPERATORI, nomeOperatore, trovaOperatore } from '@/data/operatori';
+import { MESI_UTENZA_INTERNA, utenzaDi } from '@/data/direzione';
+import { OGGI } from '@/data/datiDemo';
 
-// ─── Dati mock ─────────────────────────────────────────────────────────────────
-const PROFILO_INIZIALE = {
-    id: 1,
-    nome: 'Antonino',
-    cognome: 'Nocera',
-    email: 'antonino@cria.it',
-    telefono: '+39 333 1234567',
-    ruolo: 'admin',
-    createdAt: '2026-01-01',
-    ultimoAccesso: '2026-05-04 09:30',
-    twoFactorEnabled: false,
+// ═════════════════════════════════════════════════════════════════════════════
+// IL MIO PROFILO, AREA INTERNA — O-32
+// Unificato con il profilo personale (F-12): stesse sezioni, nello stesso ordine
+// — dati, account, sicurezza, notifiche, sessione — con in più quello che vale
+// solo per chi lavora dentro CRIA (§13.4): la funzione, il responsabile, la
+// scadenza dell'utenza a 12 mesi con la riconferma.
+// I dati personali li cambia ognuno da sé (e restano nel registro); il codice
+// fiscale solo l'admin. Funzione e permessi li cambia l'admin: da qui si
+// chiede, non si cambia. L'admin ha accesso completo e cambia anche i suoi.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// Le richieste di modifica mandate all'amministrazione, nel browser.
+const store = creaStoreDemo('criaProfiloInternoDemo', () => ({ richieste: [] }));
+
+// Chi crea l'utenza di chi (§13.4): chi ha qualcuno sotto di sé, e nessun altro.
+const LIVELLI = {
+    admin: { etichetta: 'Accesso completo', creataDa: 'l’organo amministrativo' },
+    operatore: { etichetta: 'Operatore', creataDa: 'il proprio responsabile' },
+    responsabile: { etichetta: 'Responsabile di area', creataDa: 'il direttore della propria area' },
+    direzione: { etichetta: 'Direzione', creataDa: 'l’amministrazione, su nomina dell’organo amministrativo' },
+    controllo: { etichetta: 'Controllo', creataDa: 'l’amministrazione' },
 };
 
-const SESSIONI = [
-    { id: 1, dispositivo: 'MacBook Pro · Chrome', posizione: 'Lugano, CH', data: '2026-05-04 09:30', corrente: true },
-    { id: 2, dispositivo: 'iPhone · Safari', posizione: 'Lugano, CH', data: '2026-05-03 18:15', corrente: false },
-    { id: 3, dispositivo: 'MacBook Pro · Chrome', posizione: 'Milano, IT', data: '2026-05-01 14:22', corrente: false },
-];
+const STATO_IDENTITA = {
+    non_caricato: { etichetta: 'Da caricare', classe: 'bg-gray-100 text-gray-700' },
+    in_attesa: { etichetta: 'In verifica', classe: 'bg-blue-100 text-blue-800' },
+    verificato: { etichetta: 'Verificato', classe: 'bg-green-100 text-green-800' },
+    da_integrare: { etichetta: 'Da integrare', classe: 'bg-amber-100 text-amber-800' },
+};
 
-const ATTIVITA_ACCESSO = [
-    { id: 1, azione: 'Login riuscito', dispositivo: 'MacBook Pro · Chrome', data: '2026-05-04 09:30' },
-    { id: 2, azione: 'Password modificata', dispositivo: 'MacBook Pro · Chrome', data: '2026-04-28 10:00' },
-    { id: 3, azione: 'Login riuscito', dispositivo: 'iPhone · Safari', data: '2026-05-03 18:15' },
-    { id: 4, azione: 'Email modificata', dispositivo: 'MacBook Pro · Chrome', data: '2026-04-15 11:30' },
-];
+const CARATTERI_MINIMI = 15;
 
-// ─── Campo editabile inline ───────────────────────────────────────────────────
-const CampoEditabile = ({ label, value, onSave, type = 'text', icon: Icon }) => {
-    const [editing, setEditing] = useState(false);
-    const [val, setVal] = useState(value);
-    const conferma = () => { onSave(val); setEditing(false); toast.success(`${label} aggiornato`); };
-    const annulla = () => { setVal(value); setEditing(false); };
+const ChiediModifica = ({ operatore }) => {
+    const [aperta, setAperta] = useState(false);
+    const [testo, setTesto] = useState('');
+    const { richieste } = store.useStore();
+    const mie = richieste.filter(r => r.operatoreId === operatore.id);
+
+    const invia = () => {
+        if (testo.trim().length < CARATTERI_MINIMI) { toast.error('Scrivi cosa va cambiato e perché'); return; }
+        store.aggiorna(s => ({
+            richieste: [{ id: nuovoIdDemo('rich'), operatoreId: operatore.id, testo: testo.trim(), richiestaDa: operatore.id, richiestaIl: OGGI, stato: 'inviata' }, ...s.richieste],
+        }));
+        toast.success('Richiesta inviata all’amministrazione');
+        setTesto('');
+        setAperta(false);
+    };
 
     return (
-        <div>
-            <p className="text-xs text-muted-foreground mb-1">{label}</p>
-            {editing ? (
-                <div className="flex items-center gap-2">
-                    <Input type={type} value={val} onChange={e => setVal(e.target.value)}
-                        className="h-9 text-sm" autoFocus
-                        onKeyDown={e => { if (e.key === 'Enter') conferma(); if (e.key === 'Escape') annulla(); }} />
-                    <button onClick={conferma} className="text-green-600"><Check className="w-4 h-4" /></button>
-                    <button onClick={annulla} className="text-red-600"><X className="w-4 h-4" /></button>
+        <div className="rounded-xl border border-border p-4 space-y-3">
+            <div className="flex items-start gap-3">
+                <Lock className="w-5 h-5 flex-shrink-0 mt-0.5 text-muted-foreground" />
+                <div className="min-w-0 text-sm">
+                    <p className="font-medium text-foreground">Funzione e permessi li cambia l’admin</p>
+                    <p className="text-muted-foreground mt-0.5">
+                        Funzione, responsabile, permessi e scadenza dell’utenza non si cambiano da sé. Se qualcosa non torna, chiedilo da qui.
+                    </p>
+                </div>
+            </div>
+            {aperta ? (
+                <div className="space-y-2">
+                    <label htmlFor="richiesta-modifica" className="text-xs text-muted-foreground">Cosa va cambiato, e perché</label>
+                    <Textarea id="richiesta-modifica" value={testo} onChange={e => setTesto(e.target.value)} rows={3}
+                        placeholder="Per esempio: da ottobre seguo anche le contestazioni, mi serve la funzione di assistenza." />
+                    <div className="flex flex-wrap gap-2">
+                        <Button size="sm" className="gap-1.5" onClick={invia}><Send className="w-3.5 h-3.5" /> Invia all’amministrazione</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setAperta(false); setTesto(''); }}>Annulla</Button>
+                    </div>
                 </div>
             ) : (
-                <div className="flex items-center gap-2 group">
-                    {Icon && <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
-                    <p className="font-medium text-foreground">{val || '—'}</p>
-                    <button onClick={() => setEditing(true)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
-                        <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                </div>
+                <Button size="sm" variant="outline" onClick={() => setAperta(true)}>Chiedi una modifica</Button>
+            )}
+            {mie.length > 0 && (
+                <ul className="space-y-2 border-t border-border pt-3">
+                    {mie.map(r => (
+                        <li key={r.id} className="text-sm">
+                            <p className="text-foreground">{r.testo}</p>
+                            <p className="text-xs text-muted-foreground">
+                                Chiesta da {nomeOperatore(r.richiestaDa)} il {fmtData(r.richiestaIl)} · all’amministrazione · in attesa
+                            </p>
+                        </li>
+                    ))}
+                </ul>
             )}
         </div>
     );
 };
 
-// ─── Indicatore forza password ─────────────────────────────────────────────────
-const ForzaPwd = ({ pwd }) => {
-    if (!pwd) return null;
-    const checks = [
-        { ok: pwd.length >= 8, label: '8+ char' },
-        { ok: /[A-Z]/.test(pwd), label: 'Maiusc' },
-        { ok: /[0-9]/.test(pwd), label: 'Numero' },
-        { ok: /[^A-Za-z0-9]/.test(pwd), label: 'Simbolo' },
-    ];
-    const score = checks.filter(c => c.ok).length;
-    const colore = score <= 1 ? 'bg-red-500' : score === 2 ? 'bg-orange-500' : score === 3 ? 'bg-yellow-500' : 'bg-green-500';
-    return (
-        <div className="space-y-1.5 mt-1">
-            <div className="flex gap-1">
-                {[1, 2, 3, 4].map(i => (
-                    <div key={i} className={`h-1 flex-1 rounded-full ${i <= score ? colore : 'bg-muted'}`} />
-                ))}
-            </div>
-            <div className="flex flex-wrap gap-x-3">
-                {checks.map(c => (
-                    <span key={c.label} className={`text-xs ${c.ok ? 'text-green-600' : 'text-muted-foreground'}`}>
-                        {c.ok ? '✓' : '○'} {c.label}
-                    </span>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-// ─── Modal 2FA ─────────────────────────────────────────────────────────────────
-const Modal2FA = ({ onClose, onConfirm }) => {
-    const [step, setStep] = useState(1);
-    const [code, setCode] = useState('');
-    const secret = 'JBSWY3DPEHPK3PXP'; // mock — generato dal backend
-
-    const conferma = () => {
-        if (code.length !== 6) { toast.error('Inserisci il codice a 6 cifre'); return; }
-        onConfirm();
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-card border border-border rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5">
-
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <Smartphone className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-foreground">Attiva autenticazione a 2 fattori</h3>
-                        <p className="text-xs text-muted-foreground">Step {step} di 2</p>
-                    </div>
-                </div>
-
-                {step === 1 && (
-                    <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                            Scansiona il codice QR con la tua app di autenticazione (Google Authenticator, Authy, 1Password).
-                        </p>
-                        <div className="flex justify-center p-6 bg-muted/30 rounded-xl">
-                            <div className="w-40 h-40 bg-white border border-border rounded-lg flex items-center justify-center">
-                                <QrCode className="w-24 h-24 text-foreground" />
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Oppure inserisci manualmente:</p>
-                            <div className="flex items-center gap-2 p-3 bg-muted/40 rounded-lg">
-                                <code className="text-sm font-mono flex-1">{secret}</code>
-                                <button onClick={() => { navigator.clipboard.writeText(secret); toast.success('Copiato'); }}
-                                    className="text-muted-foreground hover:text-foreground">
-                                    <Copy className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 justify-end pt-2">
-                            <Button variant="outline" onClick={onClose}>Annulla</Button>
-                            <Button onClick={() => setStep(2)} className="gap-2">
-                                Avanti <Check className="w-4 h-4" />
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                {step === 2 && (
-                    <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                            Inserisci il codice a 6 cifre generato dalla tua app.
-                        </p>
-                        <Input value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                            placeholder="000000" maxLength={6}
-                            className="text-center text-2xl tracking-widest font-mono h-14" autoFocus />
-                        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs text-amber-800">
-                                Salva i codici di backup in un posto sicuro. Senza l'app o i codici di backup non potrai accedere all'account.
-                            </p>
-                        </div>
-                        <div className="flex gap-3 justify-end pt-2">
-                            <Button variant="outline" onClick={() => setStep(1)}>Indietro</Button>
-                            <Button onClick={conferma} className="gap-2">
-                                <Check className="w-4 h-4" /> Attiva 2FA
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-            </div>
-        </div>
-    );
-};
-
-// ─── Componente principale ────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
 const ProfiloAdminPage = () => {
-    const [profilo, setProfilo] = useState(PROFILO_INIZIALE);
-    const [showPwdSection, setShowPwdSection] = useState(false);
-    const [pwdAttuale, setPwdAttuale] = useState('');
-    const [nuovaPwd, setNuovaPwd] = useState('');
-    const [confermaPwd, setConfermaPwd] = useState('');
-    const [showPwd, setShowPwd] = useState({ attuale: false, nuova: false, conferma: false });
-    const [show2FAModal, setShow2FAModal] = useState(false);
+    const { persona, aggiornaPersona } = useAuth();
+    const { operatore } = useOperatoreAttivo();
+    const [preferenze, setPreferenze] = useState({ assegnate: true, riepilogo: true });
 
-    const aggiorna = (campo, val) => setProfilo(p => ({ ...p, [campo]: val }));
+    if (!persona) return null;
 
-    const cambiaPassword = () => {
-        if (!pwdAttuale.trim()) { toast.error('Inserisci la password attuale'); return; }
-        if (nuovaPwd.length < 8) { toast.error('La nuova password deve avere almeno 8 caratteri'); return; }
-        if (nuovaPwd !== confermaPwd) { toast.error('Le password non coincidono'); return; }
-        if (!/[A-Z]/.test(nuovaPwd) || !/[0-9]/.test(nuovaPwd)) { toast.error('La password deve contenere maiuscole e numeri'); return; }
+    if (!operatore) {
+        return (
+            <div className="space-y-6">
+                <Helmet><title>Il mio profilo - CRIA</title></Helmet>
+                <h1 className="text-2xl font-bold text-foreground">Il mio profilo</h1>
+                <Riquadro icona={Briefcase} titolo="Nessun ruolo interno">
+                    <p className="text-sm text-muted-foreground">Questo account non ha una funzione dentro CRIA: il profilo è quello personale.</p>
+                </Riquadro>
+            </div>
+        );
+    }
 
-        // TODO: chiamata Edge Function per cambio password
-        toast.success('Password aggiornata con successo');
-        setPwdAttuale(''); setNuovaPwd(''); setConfermaPwd('');
-        setShowPwdSection(false);
-    };
+    const funzione = FUNZIONI[operatore.funzione];
+    const livello = LIVELLI[funzione.livello];
+    const responsabile = trovaOperatore(operatore.responsabile);
+    const utenza = utenzaDi(operatore.id);
+    const scade = utenza ? aggiungiMesi(utenza.attivaDal, MESI_UTENZA_INTERNA) : null;
+    const giorni = scade ? giorniSolariTra(OGGI, scade) : null;
+    const sotto = OPERATORI.filter(o => o.responsabile === operatore.id);
+    const admin = operatore.funzione === 'admin';
+    const azioni = admin ? [] : Object.values(AZIONI).filter(a => a.funzioni.includes(operatore.funzione));
+    const salva = (campo) => (valore) => aggiornaPersona({ [campo]: valore });
+    const identita = STATO_IDENTITA[persona.statoIdentita] || STATO_IDENTITA.non_caricato;
 
-    const attiva2FA = () => {
-        aggiorna('twoFactorEnabled', true);
-        toast.success('Autenticazione a 2 fattori attivata');
-    };
-
-    const disattiva2FA = () => {
-        if (window.confirm('Sicuro di voler disattivare il 2FA? Il tuo account sarà meno protetto.')) {
-            aggiorna('twoFactorEnabled', false);
-            toast.info('2FA disattivato');
-        }
-    };
-
-    const terminaSessione = (id) => {
-        toast.success('Sessione terminata');
+    const cambiaPreferenza = (chiave) => (valore) => {
+        setPreferenze(p => ({ ...p, [chiave]: valore }));
+        toast.success('Preferenze aggiornate');
     };
 
     return (
         <>
-            <Helmet><title>Profilo - CRIA Admin</title></Helmet>
-
-            {show2FAModal && <Modal2FA onClose={() => setShow2FAModal(false)} onConfirm={attiva2FA} />}
+            <Helmet><title>Il mio profilo - CRIA</title></Helmet>
 
             <div className="space-y-6">
-
-                {/* Intestazione */}
                 <div className="flex items-start justify-between flex-wrap gap-4">
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="text-2xl font-bold text-foreground mb-1">Il mio profilo</h1>
-                        <p className="text-sm text-muted-foreground">Gestisci le informazioni del tuo account e le impostazioni di sicurezza</p>
+                        <p className="text-sm text-muted-foreground">Dati, sicurezza e preferenze. La funzione e i permessi li gestisce l’amministrazione.</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <span className="text-base font-bold text-primary uppercase">
-                                {profilo.nome[0]}{profilo.cognome[0]}
-                            </span>
+                            <span className="text-base font-bold text-primary">{iniziali(persona)}</span>
                         </div>
                         <div>
-                            <p className="font-medium text-foreground">{profilo.nome} {profilo.cognome}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{profilo.ruolo}</p>
+                            <p className="font-medium text-foreground">{nomeVisualizzato(persona)}</p>
+                            <p className="text-xs text-muted-foreground">{funzione.etichetta} · area interna</p>
                         </div>
                     </div>
                 </div>
 
-                {/* ── 1. Dati personali ─────────────────────────────────── */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <User className="w-5 h-5" /> Dati personali
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <CampoEditabile label="Nome" value={profilo.nome} onSave={v => aggiorna('nome', v)} />
-                            <CampoEditabile label="Cognome" value={profilo.cognome} onSave={v => aggiorna('cognome', v)} />
-                            <CampoEditabile label="Email" value={profilo.email} onSave={v => aggiorna('email', v)} type="email" icon={Mail} />
-                            <CampoEditabile label="Telefono" value={profilo.telefono} onSave={v => aggiorna('telefono', v)} type="tel" icon={Phone} />
+
+                <Riquadro icona={Briefcase} titolo="Il mio ruolo in CRIA"
+                    sottotitolo="Ruolo provvisorio: la lista definitiva dei ruoli arriva con il governo degli accessi.">
+                    <div className="space-y-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                            <Voce etichetta="Funzione">{funzione.etichetta}</Voce>
+                            <Voce etichetta="Livello">{livello.etichetta}</Voce>
+                            <Voce etichetta="Responsabile">
+                                {responsabile ? `${nomeOperatore(responsabile.id)} · ${FUNZIONI[responsabile.funzione].etichetta}` : 'Risponde all’organo amministrativo'}
+                            </Voce>
+                            <Voce etichetta="Utenza creata da">
+                                {utenza ? nomeOperatore(utenza.creataDa) : '—'}
+                                <span className="block text-xs font-normal text-muted-foreground">Per regola: {livello.creataDa}</span>
+                            </Voce>
+                            <Voce etichetta="Utenza attiva dal">{utenza ? fmtData(utenza.attivaDal) : '—'}</Voce>
+                            <Voce etichetta="Scade il">
+                                {scade ? fmtData(scade) : '—'}
+                                {giorni != null && (
+                                    <span className={`block text-xs font-normal ${giorni <= 30 ? 'text-amber-800' : 'text-muted-foreground'}`}>
+                                        {giorni > 0 ? `tra ${giorni} giorni` : giorni === 0 ? 'oggi' : `scaduta da ${-giorni} giorni`}
+                                    </span>
+                                )}
+                            </Voce>
+                        </div>
+
+                        <p className="text-sm text-foreground">{funzione.cosaFa}.</p>
+
+                        <p className="text-sm text-muted-foreground">
+                            Le utenze interne durano {MESI_UTENZA_INTERNA} mesi. Prima della scadenza la riconferma{' '}
+                            {responsabile ? nomeOperatore(responsabile.id) : 'l’amministrazione'}; senza riconferma l’accesso si spegne da solo.
+                            Quando lasci CRIA, l’amministrazione spegne tutti i tuoi accessi con un solo comando.
+                        </p>
+
+                        {sotto.length > 0 && (
                             <div>
-                                <p className="text-xs text-muted-foreground mb-1">Account creato</p>
-                                <p className="font-medium text-foreground flex items-center gap-2">
-                                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" /> {new Date(profilo.createdAt).toLocaleDateString('it-IT')}
+                                <p className="text-xs font-medium text-muted-foreground mb-2">Rispondono a te</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {sotto.map(o => (
+                                        <Chip key={o.id} classe="bg-muted text-foreground">{nomeOperatore(o.id)} · {FUNZIONI[o.funzione].etichetta}</Chip>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    Le loro utenze le crei e le riconfermi tu, con permessi che hai anche tu. A nessun altro.
                                 </p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground mb-1">Ultimo accesso</p>
-                                <p className="font-medium text-foreground">{profilo.ultimoAccesso}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* ── 2. Sicurezza ──────────────────────────────────────── */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Shield className="w-5 h-5" /> Sicurezza
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-
-                        {/* Password */}
-                        <div className="flex items-start justify-between gap-4 p-4 bg-muted/30 rounded-xl">
-                            <div className="flex items-start gap-3">
-                                <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                                    <Key className="w-4 h-4 text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="font-medium text-foreground">Password</p>
-                                    <p className="text-xs text-muted-foreground">Modificata l'ultima volta il 28/04/2026</p>
-                                </div>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => setShowPwdSection(s => !s)}>
-                                {showPwdSection ? 'Annulla' : 'Modifica'}
-                            </Button>
-                        </div>
-
-                        {showPwdSection && (
-                            <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl space-y-4">
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs">Password attuale</Label>
-                                    <div className="relative">
-                                        <Input type={showPwd.attuale ? 'text' : 'password'} value={pwdAttuale}
-                                            onChange={e => setPwdAttuale(e.target.value)}
-                                            placeholder="••••••••" style={{ paddingRight: '2.5rem' }} />
-                                        <button onClick={() => setShowPwd(s => ({ ...s, attuale: !s.attuale }))}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                            {showPwd.attuale ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs">Nuova password</Label>
-                                    <div className="relative">
-                                        <Input type={showPwd.nuova ? 'text' : 'password'} value={nuovaPwd}
-                                            onChange={e => setNuovaPwd(e.target.value)}
-                                            placeholder="••••••••" style={{ paddingRight: '2.5rem' }} />
-                                        <button onClick={() => setShowPwd(s => ({ ...s, nuova: !s.nuova }))}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                            {showPwd.nuova ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                    <ForzaPwd pwd={nuovaPwd} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-xs">Conferma nuova password</Label>
-                                    <div className="relative">
-                                        <Input type={showPwd.conferma ? 'text' : 'password'} value={confermaPwd}
-                                            onChange={e => setConfermaPwd(e.target.value)}
-                                            placeholder="••••••••" style={{ paddingRight: '2.5rem' }} />
-                                        <button onClick={() => setShowPwd(s => ({ ...s, conferma: !s.conferma }))}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                            {showPwd.conferma ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                    {confermaPwd && confermaPwd === nuovaPwd && (
-                                        <p className="text-xs text-green-600 flex items-center gap-1">
-                                            <CheckCircle2 className="w-3 h-3" /> Le password coincidono
-                                        </p>
-                                    )}
-                                </div>
-                                <Button onClick={cambiaPassword} className="gap-2">
-                                    <Zap className="w-4 h-4" /> Aggiorna password
-                                </Button>
                             </div>
                         )}
 
-                        {/* 2FA */}
-                        <div className="flex items-start justify-between gap-4 p-4 bg-muted/30 rounded-xl">
-                            <div className="flex items-start gap-3">
-                                <div className={`p-2 rounded-lg flex-shrink-0 ${profilo.twoFactorEnabled ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                                    <Smartphone className={`w-4 h-4 ${profilo.twoFactorEnabled ? 'text-green-600' : 'text-yellow-600'}`} />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <p className="font-medium text-foreground">Autenticazione a 2 fattori</p>
-                                        {profilo.twoFactorEnabled ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                <CheckCircle2 className="w-3 h-3" /> Attiva
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                Non attiva
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                        {profilo.twoFactorEnabled
-                                            ? 'Account protetto con codice da app autenticatore'
-                                            : 'Aggiungi un livello extra di sicurezza al tuo account'}
-                                    </p>
-                                </div>
+                        {azioni.length > 0 && (
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-2">Azioni che ti spettano</p>
+                                <ul className="space-y-1.5 text-sm">
+                                    {azioni.map(a => (
+                                        <li key={a.etichetta}>
+                                            <span className="text-foreground">{a.etichetta}</span>
+                                            {a.incompatibilita && <span className="block text-xs text-muted-foreground">{a.incompatibilita}</span>}
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
-                            {profilo.twoFactorEnabled ? (
-                                <Button variant="outline" size="sm" onClick={disattiva2FA} className="text-red-600 border-red-200 hover:bg-red-50">
-                                    Disattiva
-                                </Button>
-                            ) : (
-                                <Button size="sm" onClick={() => setShow2FAModal(true)} className="gap-2">
-                                    <Zap className="w-4 h-4" /> Attiva
-                                </Button>
-                            )}
-                        </div>
+                        )}
 
-                    </CardContent>
-                </Card>
+                        <p className="text-sm text-muted-foreground">
+                            Il ruolo dice che tipo di dati vedi, l’assegnazione su quali pratiche. Per aprire un fascicolo che non è tuo c’è
+                            il vetro da rompere: l’accesso è immediato, e finisce con il motivo nel rapporto del DPO.
+                        </p>
 
-                {/* ── 3. Sessioni attive ────────────────────────────────── */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Smartphone className="w-5 h-5" /> Sessioni attive
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <table className="w-full text-sm">
-                            <thead className="border-b border-border bg-muted/40">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Dispositivo</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Posizione</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Ultima attività</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Azioni</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {SESSIONI.map(s => (
-                                    <tr key={s.id} className="hover:bg-muted/30">
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <p className="font-medium text-foreground">{s.dispositivo}</p>
-                                                {s.corrente && (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                        Sessione corrente
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-muted-foreground">{s.posizione}</td>
-                                        <td className="px-4 py-3 text-muted-foreground tabular-nums">{s.data}</td>
-                                        <td className="px-4 py-3 text-right">
-                                            {!s.corrente && (
-                                                <Button size="sm" variant="ghost" className="text-red-600 gap-1.5"
-                                                    onClick={() => terminaSessione(s.id)}>
-                                                    <LogOut className="w-3.5 h-3.5" /> Termina
-                                                </Button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </CardContent>
-                </Card>
+                        {admin ? (
+                            <p className="text-sm text-muted-foreground">
+                                Hai accesso completo: fai quello che fa ogni funzione. Resta una regola: non autorizzi e non confermi quello che hai
+                                disposto o preparato tu, come tutti.
+                            </p>
+                        ) : (
+                            <ChiediModifica operatore={operatore} />
+                        )}
+                    </div>
+                </Riquadro>
 
-                {/* ── 4. Attività di accesso ────────────────────────────── */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Activity className="w-5 h-5" /> Attività recente
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
-                            {ATTIVITA_ACCESSO.map(a => (
-                                <div key={a.id} className="flex items-start gap-3">
-                                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                                    <div className="flex-1 flex items-center justify-between flex-wrap gap-2">
-                                        <div>
-                                            <p className="text-sm text-foreground">{a.azione}</p>
-                                            <p className="text-xs text-muted-foreground">{a.dispositivo}</p>
-                                        </div>
-                                        <span className="text-xs text-muted-foreground tabular-nums">{a.data}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                <Riquadro icona={User} titolo="Dati personali">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <CampoProfilo key={`nome-${persona.nome}`} etichetta="Nome" valore={persona.nome} onSalva={salva('nome')} />
+                        <CampoProfilo key={`cognome-${persona.cognome}`} etichetta="Cognome" valore={persona.cognome} onSalva={salva('cognome')} />
+                        <CampoProfilo key={`cf-${persona.codiceFiscale}`} etichetta="Codice fiscale" valore={persona.codiceFiscale}
+                            onSalva={admin ? salva('codiceFiscale') : undefined} chiLoCambia="admin" />
+                        <CampoProfilo key={`email-${persona.email}`} etichetta="Email" valore={persona.email} icona={Mail} tipo="email" onSalva={salva('email')} />
+                        <CampoProfilo key={`tel-${persona.telefono}`} etichetta="Cellulare" valore={persona.telefono} icona={Phone} tipo="tel" onSalva={salva('telefono')} />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">
+                        {admin
+                            ? 'Da admin cambi tutti i tuoi dati. L’email è anche quella con cui entri. Ogni modifica resta nel registro.'
+                            : 'I tuoi dati li cambi tu; il codice fiscale lo cambia l’admin. L’email è anche quella con cui entri. Ogni modifica resta nel registro.'}
+                    </p>
+                </Riquadro>
 
+                <Riquadro icona={ShieldCheck} titolo="Il mio account">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <VoceAccount to="/profilo/identita" icona={Fingerprint} titolo="Documento d’identità" testo="Caricato e verificato da una persona"
+                            badge={<Chip classe={identita.classe}>{identita.etichetta}</Chip>} />
+                        <VoceAccount to="/profilo/i-miei-dati" icona={FileSearch} titolo="I miei dati" testo="Chiedi gratis una copia di tutto quello che CRIA ha su di te" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3">Fatturazione e consensi riguardano i clienti: a chi lavora in CRIA non servono.</p>
+                </Riquadro>
+
+                <Riquadro icona={Shield} titolo="Sicurezza" contenuto="space-y-3">
+                    <SezionePassword modificataIl={utenza?.attivaDal} />
+                    <DueFattori attiva obbligatoria
+                        perche="Obbligatorio per chi lavora dentro CRIA: da qui si leggono i dati di altre persone." />
+                </Riquadro>
+
+                <Riquadro icona={Bell} titolo="Notifiche" contenuto="space-y-1">
+                    <Preferenza bloccata etichetta="Scadenze e risalite"
+                        descrizione="Quando una fase si avvicina al termine o lo supera, lo sai tu e il tuo responsabile. Non si spengono: sono il motore delle scadenze." />
+                    <Preferenza id="notifica-assegnate" etichetta="Pratiche assegnate a te" descrizione="Quando entra qualcosa nella tua coda"
+                        attiva={preferenze.assegnate} onCambia={cambiaPreferenza('assegnate')} />
+                    <Preferenza id="notifica-riepilogo" etichetta="Riepilogo del mattino" descrizione="Cosa scade oggi e domani, per email"
+                        attiva={preferenze.riepilogo} onCambia={cambiaPreferenza('riepilogo')} />
+                </Riquadro>
+
+                <Riquadro icona={Monitor} titolo="Sessioni">
+                    <SessioneCorrente onEsciAltrove={() => toast.success('Sei uscito dagli altri dispositivi')} />
+                </Riquadro>
+
+                <NotaMockup>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p>Le richieste di modifica restano in questo browser: in piattaforma arrivano all’amministrazione.</p>
+                        <Button size="sm" variant="outline" className="gap-1.5 bg-white"
+                            onClick={() => { store.ripristina(); toast.success('Richieste demo ripristinate'); }}>
+                            <RotateCcw className="w-3.5 h-3.5" /> Ripristina
+                        </Button>
+                    </div>
+                </NotaMockup>
             </div>
         </>
     );
